@@ -28,12 +28,13 @@
     --accent-hover: #ffe066;
     --green: #4ade80;
     --red: #f87171;
-    --flap-bg: #1a1a1a;
-    --flap-border: #2a2a2a;
-    --flap-line: #111;
-    --flap-text: #f0f0e8;
-    --board-bg: #111;
-    --board-border: #222;
+    /* Flaps are physical objects — matte dark grey so they stand out against the deeper black board/border */
+    --flap-bg: #1f1f1f;
+    --flap-border: #2d2d2d;
+    --flap-line: #0d0d0d;
+    --flap-text: #fafafa;
+    --board-bg: #050505;
+    --board-border: #161616;
     --toast-bg: rgba(0,0,0,0.9);
     --dropdown-bg: #1a1a1a;
     --focus: #ffd639;
@@ -50,12 +51,13 @@
     --accent-hover: #b8860b;
     --green: #16a34a;
     --red: #dc2626;
-    --flap-bg: #e8e8e0;
-    --flap-border: #ccc;
-    --flap-line: #d0d0d0;
-    --flap-text: #1a1a1a;
-    --board-bg: #e0e0e0;
-    --board-border: #ccc;
+    /* Flap colors stay matte dark grey + white lettering even in light UI mode (physical reality) */
+    --flap-bg: #1f1f1f;
+    --flap-border: #2d2d2d;
+    --flap-line: #0d0d0d;
+    --flap-text: #fafafa;
+    --board-bg: #050505;
+    --board-border: #161616;
     --toast-bg: rgba(255,255,255,0.95);
     --dropdown-bg: #fff;
     --focus: #d4a017;
@@ -1858,8 +1860,22 @@
           <div class="live-weather-detail" id="liveWeatherDetail"></div>
         </div>
       </div>
+      <div class="live-slide" id="liveSlideSunset" onclick="jumpLiveSlide(3)">
+        <div class="live-slide-icon">&#x1F307;</div>
+        <div class="live-slide-body">
+          <div class="live-slide-label">Sunset</div>
+          <div class="live-slide-value" id="liveSunsetValue">---</div>
+        </div>
+      </div>
+      <div class="live-slide" id="liveSlideOpen" onclick="jumpLiveSlide(4)">
+        <div class="live-slide-icon">&#x1F6AA;</div>
+        <div class="live-slide-body">
+          <div class="live-slide-label">Shop Status</div>
+          <div class="live-slide-value" id="liveOpenValue">---</div>
+        </div>
+      </div>
     </div>
-    <div class="live-hint">Automatically updates the board with date, time, and local weather. Switch tabs to take over manually.</div>
+    <div class="live-hint">Cycles date, time, weather, sunset, and shop open/closed status. Switch tabs to take over manually.</div>
   </div>
 </div>
 
@@ -4064,7 +4080,19 @@ let liveSlideIndex = 0;
 let liveWeatherData = null;
 let liveWeatherFetchTimer = null;
 
-const LIVE_SLIDES = ['date', 'time', 'weather'];
+const LIVE_SLIDES = ['date', 'time', 'weather', 'sunset', 'openstatus'];
+
+// Shop hours used by the Open/Closed live slide.
+// Mon–Fri 9 AM – 6 PM, Sat 9 AM – 4 PM, Sun closed. Edit here to change.
+const SHOP_HOURS = {
+  1: { open:  9, close: 18 }, // Mon
+  2: { open:  9, close: 18 }, // Tue
+  3: { open:  9, close: 18 }, // Wed
+  4: { open:  9, close: 18 }, // Thu
+  5: { open:  9, close: 18 }, // Fri
+  6: { open:  9, close: 16 }, // Sat
+  0: null                     // Sun — closed
+};
 let livePausedOn = null; // null = cycling, or slide index if paused on one
 
 const WMO_CODES = {
@@ -4113,6 +4141,43 @@ function getLiveWeatherText() {
   return str.padStart(Math.floor((12 + str.length) / 2)).padEnd(12).substring(0, 12);
 }
 
+function getLiveSunsetText() {
+  if (!liveWeatherData || !liveWeatherData.sunset) return '  LOADING   ';
+  // sunset ISO is local time per Open-Meteo when timezone= is sent. Parse safely.
+  const iso = liveWeatherData.sunset; // e.g. "2026-04-29T20:14"
+  const m = iso.match(/T(\d{2}):(\d{2})/);
+  if (!m) return '  LOADING   ';
+  let h = parseInt(m[1], 10);
+  const min = m[2]; // already 2-digit
+  h = h % 12 || 12;
+  // "SUNSET~8 29" — yellow flap (~) separates "SUNSET" from the time; PM dropped (sunset implies evening)
+  const str = 'SUNSET~' + h + ' ' + min;
+  return str.padStart(Math.floor((12 + str.length) / 2)).padEnd(12).substring(0, 12);
+}
+
+function getLiveOpenText() {
+  const now = new Date();
+  const dow = now.getDay();
+  const hours = SHOP_HOURS[dow];
+  if (!hours) return '   CLOSED   ';
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const openMin = hours.open * 60;
+  const closeMin = hours.close * 60;
+  if (nowMin < openMin) {
+    const oh = hours.open % 12 || 12;
+    const ampm = hours.open >= 12 ? 'PM' : 'AM';
+    const str = 'OPENS ' + oh + ' ' + ampm;
+    return str.padStart(Math.floor((12 + str.length) / 2)).padEnd(12).substring(0, 12);
+  } else if (nowMin >= closeMin) {
+    return '   CLOSED   ';
+  } else {
+    const ch = hours.close % 12 || 12;
+    const ampm = hours.close >= 12 ? 'PM' : 'AM';
+    const str = 'OPEN TIL ' + ch + ampm;
+    return str.padStart(Math.floor((12 + str.length) / 2)).padEnd(12).substring(0, 12);
+  }
+}
+
 function updateLiveSlideValues() {
   const now = new Date();
   const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
@@ -4133,6 +4198,40 @@ function updateLiveSlideValues() {
     const cond = WMO_CODES[liveWeatherData.code] || 'Unknown';
     document.getElementById('liveWeatherValue').textContent = temp + '°F ' + cond;
     document.getElementById('liveWeatherDetail').textContent = 'High ' + hi + '° / Low ' + lo + '°';
+
+    // Sunset slide
+    if (liveWeatherData.sunset) {
+      const m = liveWeatherData.sunset.match(/T(\d{2}):(\d{2})/);
+      if (m) {
+        let sh = parseInt(m[1], 10);
+        const sm = m[2];
+        const sap = sh >= 12 ? 'PM' : 'AM';
+        sh = sh % 12 || 12;
+        document.getElementById('liveSunsetValue').textContent = sh + ':' + sm + ' ' + sap;
+      }
+    }
+  }
+
+  // Open/Closed slide — pure date math, always renderable
+  const dow = now.getDay();
+  const hours = SHOP_HOURS[dow];
+  const openEl = document.getElementById('liveOpenValue');
+  if (openEl) {
+    if (!hours) {
+      openEl.textContent = 'Closed today';
+    } else {
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const openMin = hours.open * 60;
+      const closeMin = hours.close * 60;
+      const fmt = (h24) => {
+        const ap = h24 >= 12 ? 'PM' : 'AM';
+        const h12 = h24 % 12 || 12;
+        return h12 + ' ' + ap;
+      };
+      if (nowMin < openMin)        openEl.textContent = 'Opens at ' + fmt(hours.open);
+      else if (nowMin >= closeMin) openEl.textContent = 'Closed for the day';
+      else                          openEl.textContent = 'Open until ' + fmt(hours.close);
+    }
   }
 }
 
@@ -4176,7 +4275,10 @@ function showLiveSlide(index, skipTransition) {
   let text;
   if (type === 'date') text = getLiveDateText();
   else if (type === 'time') text = getLiveTimeText();
-  else text = getLiveWeatherText();
+  else if (type === 'weather') text = getLiveWeatherText();
+  else if (type === 'sunset') text = getLiveSunsetText();
+  else if (type === 'openstatus') text = getLiveOpenText();
+  else text = getLiveDateText();
 
   if (skipTransition) {
     sendToDisplay(text);
@@ -4286,7 +4388,7 @@ async function fetchWeather() {
     const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + FOUR_CORNERS_LAT
       + '&longitude=' + FOUR_CORNERS_LON
       + '&current=temperature_2m,weather_code'
-      + '&daily=temperature_2m_max,temperature_2m_min'
+      + '&daily=temperature_2m_max,temperature_2m_min,sunset'
       + '&temperature_unit=fahrenheit'
       + '&timezone=America%2FDenver'
       + '&forecast_days=1';
@@ -4296,7 +4398,8 @@ async function fetchWeather() {
       temp: data.current.temperature_2m,
       code: data.current.weather_code,
       high: data.daily.temperature_2m_max[0],
-      low: data.daily.temperature_2m_min[0]
+      low: data.daily.temperature_2m_min[0],
+      sunset: data.daily.sunset && data.daily.sunset[0] // ISO local time, e.g. "2026-04-29T20:14"
     };
     updateLiveSlideValues();
     // If currently showing weather slide, refresh display
