@@ -1,0 +1,4330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ReedBoard</title>
+
+<!-- iOS web app -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ReedBoard">
+<meta name="theme-color" content="#f5f5f5">
+
+<!-- Fonts (requires internet on first load, cached after) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+  :root {
+    --bg: #0a0a0a;
+    --card: #151515;
+    --border: #222;
+    --text: #e0e0e0;
+    --text-dim: #555;
+    --accent: #ffd639;
+    --accent-hover: #ffe066;
+    --green: #4ade80;
+    --red: #f87171;
+    --flap-bg: #1a1a1a;
+    --flap-border: #2a2a2a;
+    --flap-line: #111;
+    --flap-text: #f0f0e8;
+    --board-bg: #111;
+    --board-border: #222;
+    --toast-bg: rgba(0,0,0,0.9);
+    --dropdown-bg: #1a1a1a;
+    --focus: #ffd639;
+    --scroll-thumb: #333;
+  }
+
+  body.light {
+    --bg: #f5f5f5;
+    --card: #ffffff;
+    --border: #ddd;
+    --text: #1a1a1a;
+    --text-dim: #888;
+    --accent: #d4a017;
+    --accent-hover: #b8860b;
+    --green: #16a34a;
+    --red: #dc2626;
+    --flap-bg: #e8e8e0;
+    --flap-border: #ccc;
+    --flap-line: #d0d0d0;
+    --flap-text: #1a1a1a;
+    --board-bg: #e0e0e0;
+    --board-border: #ccc;
+    --toast-bg: rgba(255,255,255,0.95);
+    --dropdown-bg: #fff;
+    --focus: #d4a017;
+    --scroll-thumb: #bbb;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    height: 100dvh;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ─── Top bar ─── */
+  .top-bar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px 0;
+    flex-shrink: 0;
+  }
+
+  .top-bar .brand {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+  }
+
+
+  /* ─── Tabs ─── */
+  .tab-bar {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    width: 100%;
+    max-width: 320px;
+    margin: 10px auto 4px;
+    background: var(--card);
+    border-radius: 10px;
+    padding: 3px;
+    flex-shrink: 0;
+  }
+
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 8px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+  }
+
+  .tab-btn.active {
+    background: var(--text);
+    color: var(--bg);
+  }
+
+  .tab-btn:not(.active):hover {
+    color: var(--text);
+  }
+  .tab-btn.controlling::after {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    display: inline-block;
+    margin-left: 5px;
+    vertical-align: middle;
+    animation: pulse 2s infinite;
+  }
+
+  /* ─── Board ─── */
+  .board-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 20px 12px 16px;
+    flex-shrink: 0;
+    transition: padding-top 0.3s ease;
+  }
+
+
+  .board {
+    background: var(--board-bg);
+    border: 2px solid var(--board-border);
+    border-radius: 8px;
+    padding: 12px 8px;
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    flex-wrap: nowrap;
+    max-width: 100%;
+  }
+
+  .flap-module {
+    width: 42px; height: 64px;
+    background: var(--flap-bg);
+    border: 1px solid var(--flap-border);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; flex-shrink: 0;
+  }
+  .flap-module::after {
+    content: ''; position: absolute;
+    left: 2px; right: 2px; top: 50%;
+    height: 1px; background: var(--flap-line);
+  }
+  .flap-char {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 32px; font-weight: 700;
+    color: var(--flap-text); z-index: 1; line-height: 1;
+  }
+  .flap-module.color-flap .flap-char { display: none; }
+  .flap-module.color-flap { border-color: transparent; }
+
+  .board-sub {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    min-height: 24px;
+    width: 100%;
+  }
+
+  .board-timer {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'Roboto Mono', monospace;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .board-timer:hover { background: rgba(255,255,255,0.05); }
+  body.light .board-timer:hover { background: rgba(0,0,0,0.04); }
+  .board-timer:empty { pointer-events: none; }
+
+
+  /* ─── Board hint ─── */
+  .board-hint {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 16px 24px 8px;
+    line-height: 1.6;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 280px;
+    margin: 0 auto;
+  }
+  .board-hint.hidden { display: none; }
+  .board-hint-arrow {
+    font-size: 20px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    animation: bobDown 1.5s ease-in-out infinite;
+  }
+  @keyframes bobDown {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(6px); }
+  }
+
+  /* ─── Tab panels ─── */
+  .tab-panel {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+    max-width: 600px;
+    overflow: hidden;
+  }
+  .tab-panel.active {
+    display: flex;
+  }
+
+  /* ─── Quick Send panel ─── */
+  .send-panel {
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    flex: 1;
+  }
+
+  .input-wrapper { position: relative; width: 100%; }
+
+  .hidden-input {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    opacity: 0; z-index: 5;
+    font-size: 16px;
+  }
+
+  .visual-input {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 50px 14px 12px;
+    min-height: 52px;
+    display: flex; align-items: center; gap: 0;
+    flex-wrap: wrap; position: relative; z-index: 3;
+  }
+  .visual-input.focused {
+    border-color: var(--text-dim);
+    box-shadow: 0 0 0 1px var(--text-dim);
+  }
+
+  .vi-token {
+    position: relative; cursor: text;
+    padding: 2px 1px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .vi-char {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 20px; font-weight: 700;
+    color: var(--text); letter-spacing: 1px;
+    line-height: 1; pointer-events: none;
+  }
+  .vi-char.is-space {
+    display: inline-block; width: 14px; height: 26px;
+    border-bottom: 2px solid var(--text-dim); margin: 0 1px;
+  }
+  .vi-color {
+    display: inline-block; width: 22px; height: 26px;
+    border-radius: 3px; vertical-align: middle;
+    flex-shrink: 0; pointer-events: none;
+  }
+  .vi-color.clr-green  { background: #22c55e; }
+  .vi-color.clr-red    { background: #ef4444; }
+  .vi-color.clr-yellow { background: #eab308; }
+  .vi-color.clr-purple { background: #a855f7; }
+  .vi-color.clr-white  { background: #f0f0f0; }
+
+  .vi-token.selected {
+    background: rgba(255,214,57,0.25);
+    border-radius: 3px;
+  }
+
+  .vi-cursor {
+    width: 2px; height: 26px;
+    background: var(--text-dim);
+    animation: blink 1s step-end infinite;
+    flex-shrink: 0; pointer-events: none;
+  }
+  .vi-endzone { flex: 1; min-width: 20px; min-height: 30px; cursor: text; }
+  .vi-placeholder {
+    color: var(--text-dim); font-size: 16px;
+    pointer-events: none; position: absolute; left: 14px;
+  }
+
+  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+
+  .char-count {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: var(--text-dim);
+    z-index: 4;
+    pointer-events: none;
+  }
+
+
+  .action-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-top: 10px; gap: 8px;
+    padding-bottom: 20px;
+  }
+
+  .color-btns { display: flex; gap: 6px; }
+
+  .color-btn {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .color-btn:active { transform: scale(0.9); }
+  .color-btn:hover { border-color: var(--text-dim); }
+
+  .cb-green  { background: #22c55e; }
+  .cb-red    { background: #ef4444; }
+  .cb-yellow { background: #eab308; }
+  .cb-purple { background: #a855f7; }
+  .cb-white  { background: #f0f0f0; }
+
+  .send-btn {
+    background: var(--text); color: var(--bg);
+    border: none; border-radius: 10px;
+    padding: 10px 28px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px; font-weight: 700;
+    letter-spacing: 1px; cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    text-transform: uppercase;
+  }
+  .send-btn:hover { opacity: 0.85; }
+  .send-btn:active { transform: scale(0.96); }
+  .send-btn:disabled { background: var(--border); color: var(--text-dim); cursor: default; transform: none; }
+
+  .add-to-loop-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 4px;
+    transition: color 0.15s;
+    display: none;
+  }
+  .add-to-loop-btn:hover { color: var(--text); }
+  .add-to-loop-btn.visible { display: inline-block; }
+  .add-to-loop-btn.added {
+    color: var(--green);
+    pointer-events: none;
+  }
+
+  /* ─── Loop panel ─── */
+  .loop-panel {
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ─── Loop groups ─── */
+  .group-edit-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .group-edit-btn:hover { border-color: var(--text-dim); color: var(--text); }
+  .group-edit-btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .group-edit-btn.hidden { display: none; }
+  .group-edit-btn svg { width: 14px; height: 14px; }
+
+  /* Group name modal */
+  .group-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .group-modal-overlay.open { display: flex; }
+  .group-modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    width: 280px;
+    max-width: 90vw;
+  }
+  .group-modal h3 {
+    margin: 0 0 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .group-modal input {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    outline: none;
+  }
+  .group-modal input:focus { border-color: var(--focus); }
+  .group-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .group-modal-actions button {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-dim);
+    transition: all 0.15s;
+  }
+  .group-modal-actions button:hover { border-color: var(--text-dim); color: var(--text); }
+  .group-modal-actions button.primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+  .group-modal-actions button.primary:hover { opacity: 0.85; }
+
+  .group-picker {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .group-selected {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 28px 7px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+    transition: border-color 0.15s;
+  }
+  .group-selected:hover { border-color: var(--text-dim); }
+  .group-selected.open { border-color: var(--accent); }
+
+  .group-selected-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .group-selected-arrow {
+    position: absolute;
+    right: 10px; top: 50%;
+    transform: translateY(-50%);
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--text-dim);
+  }
+
+  .group-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 200px;
+    margin-top: 4px;
+    background: var(--dropdown-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 0;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 80;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    white-space: nowrap;
+  }
+  .group-dropdown.open { display: block; }
+
+  .group-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .group-option:hover { background: rgba(255,255,255,0.06); }
+  body.light .group-option:hover { background: rgba(0,0,0,0.04); }
+  .group-option.selected { background: rgba(255,214,57,0.08); }
+
+  .group-option-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .group-option-count {
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 1px 6px;
+    flex-shrink: 0;
+  }
+
+  .group-option-tag {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  .group-dropdown-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  .group-option-create {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+    transition: background 0.1s;
+    color: var(--accent);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .group-option-create:hover { background: rgba(255,214,57,0.08); }
+  .group-option-create svg { width: 14px; height: 14px; }
+
+  .loop-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 0 12px;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  .loop-start-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 600;
+    padding: 8px 20px;
+    cursor: pointer;
+    margin-left: auto;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .loop-start-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .loop-start-btn.running {
+    background: rgba(248,113,113,0.1);
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  /* Loop list */
+  .loop-list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+
+  .loop-list::-webkit-scrollbar { width: 4px; }
+  .loop-list::-webkit-scrollbar-track { background: transparent; }
+  .loop-list::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; }
+
+  .loop-empty {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 32px 16px;
+    line-height: 1.6;
+  }
+
+  .loop-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    transition: border-color 0.15s;
+  }
+  .loop-insert-row {
+    display: flex;
+    justify-content: center;
+    padding: 2px 0;
+    position: relative;
+  }
+
+  .loop-insert-btn {
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    width: 100%;
+    padding: 3px 0;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    opacity: 0.5;
+  }
+  .loop-insert-btn:hover {
+    opacity: 1;
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(255,214,57,0.04);
+  }
+  .loop-insert-btn .insert-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Transition picker popup for inline insert */
+  .insert-trans-popup {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 2px;
+    background: var(--dropdown-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 0;
+    min-width: 160px;
+    z-index: 80;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .insert-trans-popup.open { display: block; }
+
+  .insert-trans-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .insert-trans-option:hover { background: rgba(255,255,255,0.06); }
+  body.light .insert-trans-option:hover { background: rgba(0,0,0,0.04); }
+
+  .insert-trans-option .ito-chips {
+    display: flex; gap: 1px; flex-shrink: 0;
+  }
+  .insert-trans-option .ito-label {
+    font-size: 12px; color: var(--text);
+  }
+
+  .loop-item.now-playing {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .loop-item .li-countdown {
+    display: none;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(255,214,57,0.10);
+    border-radius: 6px;
+    padding: 2px 7px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  body.light .loop-item .li-countdown {
+    background: rgba(212,160,23,0.10);
+  }
+  .loop-item.now-playing .li-countdown {
+    display: block;
+  }
+
+  .loop-item .li-preview {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .li-color-chip {
+    display: inline-block;
+    width: 12px; height: 16px;
+    border-radius: 2px;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+
+  .loop-item .li-duration {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .loop-item .li-duration:hover { background: rgba(255,255,255,0.05); }
+  body.light .loop-item .li-duration:hover { background: rgba(0,0,0,0.04); }
+
+  .li-duration-icon {
+    width: 14px; height: 14px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .li-duration-label {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  /* Duration edit modal */
+  .dur-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .dur-modal-overlay.open { display: flex; }
+
+  .dur-modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    width: 300px;
+    max-width: 90vw;
+    text-align: center;
+  }
+
+  .dur-modal-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+  }
+
+  .dur-modal-value {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .dur-modal-unit {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+
+  .dur-modal-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .dur-modal-btn {
+    width: 52px; height: 52px;
+    min-width: 52px; min-height: 52px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: border-color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .dur-modal-btn:hover { border-color: var(--accent); }
+  .dur-modal-btn:active { background: var(--accent); color: #000; }
+
+  .dur-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .dur-modal-actions button {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-dim);
+    transition: all 0.15s;
+  }
+  .dur-modal-actions button:hover { border-color: var(--text-dim); color: var(--text); }
+  .dur-modal-actions button.primary {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+  }
+  body.light .dur-modal-actions button.primary {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+  }
+  .dur-modal-actions button.primary:hover { opacity: 0.85; }
+
+  .li-drag {
+    cursor: grab;
+    color: var(--text-dim);
+    font-size: 18px;
+    padding: 4px 2px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .li-drag:active { cursor: grabbing; }
+  .li-drag svg { width: 16px; height: 16px; fill: currentColor; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); max-height: 0; margin-bottom: 0; padding: 0 10px; }
+    to { opacity: 1; transform: translateY(0); max-height: 80px; margin-bottom: 6px; padding: 8px 10px; }
+  }
+  .loop-item.slide-in {
+    animation: slideIn 0.35s ease-out forwards;
+  }
+
+  .loop-item.dragging {
+    opacity: 0.5;
+    border-color: var(--accent);
+  }
+  .loop-item.drag-over {
+    border-top: 2px solid var(--accent);
+  }
+
+  .li-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    justify-content: flex-end;
+  }
+
+  .li-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 6px;
+    line-height: 1;
+    transition: color 0.1s, background 0.1s;
+    min-width: 32px;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .li-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+  .li-btn.delete:hover { color: var(--red); }
+
+  /* Add-to-loop area */
+  .loop-add {
+    flex-shrink: 0;
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+
+
+  /* Transition chips (shared) */
+  .trans-chip {
+    display: inline-block;
+    width: 10px; height: 16px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .trans-chip.chip-blank {
+    background: var(--border);
+    border: 1px solid var(--scroll-thumb);
+  }
+
+  .trans-chip.chip-char {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    width: auto;
+    line-height: 16px;
+  }
+
+  /* ─── Toast ─── */
+  .toast {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: rgba(40,38,34,0.95);
+    border: 1px solid rgba(180,170,155,0.3);
+    border-radius: 12px;
+    padding: 20px 32px;
+    font-size: 16px; font-weight: 600;
+    color: #d4cfc6; text-align: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 100;
+  }
+  .toast.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+  body.light .toast {
+    background: rgba(245,240,232,0.97);
+    border-color: rgba(160,150,135,0.35);
+    color: #5a5347;
+  }
+
+  /* ─── Theme toggle ─── */
+  .theme-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 44px; height: 24px;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    flex-shrink: 0;
+  }
+  .theme-toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: transform 0.25s, background 0.25s;
+  }
+  body.light .theme-toggle::after {
+    transform: translateX(20px);
+    background: var(--accent);
+  }
+  .theme-icon {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-right: 4px;
+  }
+
+  /* ─── Settings panel ─── */
+  .settings-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 6px;
+    transition: color 0.15s;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+  }
+  .settings-btn:hover { color: var(--text); }
+
+  .settings-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 150;
+    align-items: center;
+    justify-content: center;
+  }
+  .settings-overlay.open { display: flex; }
+
+  .settings-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 20px;
+    width: 90%;
+    max-width: 340px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+  .settings-card::-webkit-scrollbar { width: 4px; }
+  .settings-card::-webkit-scrollbar-track { background: transparent; }
+  .settings-card::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; }
+
+  .settings-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+  }
+
+  .settings-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .settings-ip-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .settings-ip-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .settings-ip-input:focus { border-color: var(--focus); }
+  .settings-ip-input::placeholder { color: var(--text-dim); }
+
+  .settings-save-btn {
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .settings-save-btn:hover { opacity: 0.85; }
+
+  .settings-status {
+    font-size: 12px;
+    margin-top: 8px;
+    min-height: 18px;
+  }
+  .settings-status.ok { color: var(--green); }
+  .settings-status.err { color: var(--red); }
+  .settings-status.dim { color: var(--text-dim); }
+
+  .settings-hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 14px;
+    line-height: 1.5;
+  }
+
+  .settings-close {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 8px 0;
+    width: 100%;
+    margin-top: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .settings-close:hover { border-color: var(--text-dim); color: var(--text); }
+
+  /* ─── Schedule (settings) ─── */
+  .sched-toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .sched-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 44px; height: 24px;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    flex-shrink: 0;
+  }
+  .sched-toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: transform 0.25s, background 0.25s;
+  }
+  .sched-toggle.on::after {
+    transform: translateX(20px);
+    background: var(--green);
+  }
+  .sched-toggle.on { border-color: var(--green); }
+
+  .sched-body { transition: opacity 0.2s; }
+  .sched-body.disabled { opacity: 0.4; pointer-events: none; }
+
+  .sched-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 10px 0 6px;
+  }
+  .sched-sub:first-child { margin-top: 0; }
+
+  .sched-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .sched-label {
+    font-size: 12px; color: var(--text);
+  }
+
+  .sched-time {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    padding: 6px 8px;
+    outline: none;
+    width: 120px;
+    text-align: center;
+  }
+  .sched-time:focus { border-color: var(--focus); }
+  .sched-time::-webkit-calendar-picker-indicator { filter: invert(0.6); }
+  body.light .sched-time::-webkit-calendar-picker-indicator { filter: none; }
+
+  .sched-msg-input {
+    width: 100%; box-sizing: border-box;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    text-transform: uppercase;
+  }
+  .sched-msg-input:focus { border-color: var(--focus); }
+
+  .sched-select {
+    width: 100%; box-sizing: border-box;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    appearance: auto;
+    cursor: pointer;
+  }
+  .sched-select:focus { border-color: var(--focus); }
+
+
+  /* ─── Connection banner ─── */
+  .conn-banner {
+    display: none;
+    background: rgba(248,113,113,0.1);
+    border-bottom: 1px solid rgba(248,113,113,0.2);
+    padding: 6px 16px;
+    font-size: 11px;
+    color: var(--red);
+    text-align: center;
+    width: 100%;
+    flex-shrink: 0;
+  }
+  .conn-banner.visible { display: block; }
+
+  /* ─── Toast with undo ─── */
+  .toast-content {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+  }
+  .toast-undo {
+    background: rgba(255,255,255,0.15);
+    color: #e8e0d4;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 6px;
+    padding: 4px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .toast-undo:active { background: rgba(255,255,255,0.25); }
+  body.light .toast-undo {
+    background: rgba(0,0,0,0.08);
+    color: #3a352e;
+    border-color: rgba(0,0,0,0.12);
+  }
+  body.light .toast-undo:active { background: rgba(0,0,0,0.15); }
+
+
+  /* ─── Connection status (in settings) ─── */
+  .conn-status-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .conn-dot-sm {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .conn-dot-sm.connected { background: var(--green); }
+  .conn-dot-sm.disconnected { background: var(--red); }
+  .conn-dot-sm.unknown { background: var(--text-dim); }
+  .conn-status-text {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* ─── Keyboard open state ─── */
+  body.kb-open .board-area {
+    display: none;
+  }
+  body.kb-open .board-hint {
+    display: none;
+  }
+  body.kb-open .top-bar {
+    display: none;
+  }
+  body.kb-open .tab-bar {
+    margin-top: 4px;
+    margin-bottom: 0;
+  }
+  body.kb-open .loop-list {
+    max-height: 80px;
+    flex: 0 0 auto;
+  }
+  body.kb-open .loop-controls {
+    padding: 4px 0 6px;
+  }
+
+  /* ─── History drawer ─── */
+  .history-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 6px;
+    transition: color 0.15s;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+  }
+  .history-btn:hover { color: var(--text); }
+  .history-btn svg { width: 20px; height: 20px; }
+
+  .history-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 160;
+  }
+  .history-overlay.open { display: block; }
+
+  .history-drawer {
+    position: fixed;
+    top: 0; right: -100%; bottom: 0;
+    width: 92%;
+    max-width: 380px;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    z-index: 161;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s ease;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.3);
+  }
+  .history-drawer.open { right: 0; }
+
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 12px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .history-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  .history-close:hover { color: var(--text); }
+
+  .history-filters {
+    padding: 10px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .history-search {
+    width: 100%; box-sizing: border-box;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 9px 12px 9px 32px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .history-search:focus { border-color: var(--focus); }
+  .history-search::placeholder { color: var(--text-dim); }
+
+  .history-search-wrap {
+    position: relative;
+  }
+  .history-search-icon {
+    position: absolute;
+    left: 10px; top: 50%;
+    transform: translateY(-50%);
+    width: 14px; height: 14px;
+    color: var(--text-dim);
+    pointer-events: none;
+  }
+
+  .history-date-row {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .history-date-row::-webkit-scrollbar { display: none; }
+
+  .history-date-chip {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 5px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .history-date-chip:hover { border-color: var(--text-dim); color: var(--text); }
+  .history-date-chip.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 0;
+  }
+  .history-list::-webkit-scrollbar { width: 4px; }
+  .history-list::-webkit-scrollbar-track { background: transparent; }
+  .history-list::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; }
+
+  .history-empty {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 40px 16px;
+    line-height: 1.6;
+  }
+
+  .history-day-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 16px 4px;
+  }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .history-item:hover { background: rgba(255,255,255,0.04); }
+  body.light .history-item:hover { background: rgba(0,0,0,0.03); }
+
+  .history-item-preview {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .history-item-time {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .history-item-source {
+    font-size: 9px;
+    color: var(--text-dim);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+  }
+
+  /* History item action popup */
+  .history-action-popup {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    width: 260px;
+    max-width: 90vw;
+    z-index: 170;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .history-action-popup.open {
+    display: block;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .history-action-preview {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    overflow: hidden;
+  }
+
+  .history-action-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .history-action-btn {
+    width: 100%;
+    padding: 11px 0;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .history-action-btn:hover { opacity: 0.85; }
+  .history-action-btn.primary {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+  .history-action-btn svg { width: 16px; height: 16px; }
+
+  .history-action-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 165;
+  }
+  .history-action-overlay.open { display: block; }
+
+  .history-add-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .history-group-select {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 0 10px;
+    outline: none;
+    cursor: pointer;
+    appearance: auto;
+    min-width: 0;
+  }
+  .history-group-select:focus { border-color: var(--focus); }
+
+  /* ─── Live panel ─── */
+  .live-panel {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+
+  .live-slides {
+    width: 100%;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .live-slide {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .live-slide.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .live-slide-icon {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+  }
+
+  .live-slide-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .live-slide-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .live-slide-value {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .live-weather-detail {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .live-slide {
+    cursor: pointer;
+  }
+  .live-slide:not(.active):hover {
+    border-color: var(--text-dim);
+  }
+
+  .live-start-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 600;
+    padding: 8px 20px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 14px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .live-start-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .live-start-btn.running {
+    background: rgba(248,113,113,0.1);
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .live-hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 20px;
+    line-height: 1.5;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 520px) {
+    .flap-module { width: 28px; height: 46px; }
+    .flap-char { font-size: 22px; }
+    .board { gap: 2px; padding: 8px 6px; }
+  }
+  @media (min-width: 521px) and (max-width: 768px) {
+    .flap-module { width: 36px; height: 56px; }
+    .flap-char { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <span class="brand">ReedBoard</span>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <button class="history-btn" onclick="openHistory()" aria-label="History">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M2.05 12A10 10 0 0 1 4.64 5.64" opacity="0.4"/></svg>
+    </button>
+    <button class="settings-btn" onclick="openSettings()" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Connection banner (hidden by default) -->
+<div class="conn-banner" id="connBanner">&#9888; Disconnected from display — check WiFi or ESP32</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab-btn active" id="tabLive" onclick="switchTab('live')">Live</button>
+  <button class="tab-btn" id="tabSend" onclick="switchTab('send')">Quick Send</button>
+  <button class="tab-btn" id="tabLoop" onclick="switchTab('loop')">Loop</button>
+</div>
+
+<!-- Board -->
+<div class="board-area">
+  <div style="text-align:center;">
+    <div class="board" id="board"></div>
+    <div class="board-sub">
+      <span class="board-timer" id="boardTimer"></span>
+      <button class="add-to-loop-btn" id="addToLoopBtn" onclick="addLastToLoop()">+ Add to Loop</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Live Panel ═══ -->
+<div class="tab-panel active" id="panelLive">
+  <div class="live-panel">
+    <button class="live-start-btn" id="liveStartBtn" onclick="toggleLiveMode()"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> Start Live Data</button>
+    <div class="live-slides" id="liveSlides">
+      <div class="live-slide active" id="liveSlideDate" onclick="jumpLiveSlide(0)">
+        <div class="live-slide-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+        <div class="live-slide-body">
+          <div class="live-slide-label">Date</div>
+          <div class="live-slide-value" id="liveDateValue">---</div>
+        </div>
+      </div>
+      <div class="live-slide" id="liveSlideTime" onclick="jumpLiveSlide(1)">
+        <div class="live-slide-icon">&#9201;</div>
+        <div class="live-slide-body">
+          <div class="live-slide-label">Time</div>
+          <div class="live-slide-value" id="liveTimeValue">---</div>
+        </div>
+      </div>
+      <div class="live-slide" id="liveSlideWeather" onclick="jumpLiveSlide(2)">
+        <div class="live-slide-icon">&#9729;</div>
+        <div class="live-slide-body">
+          <div class="live-slide-label">Weather — Four Corners, MT</div>
+          <div class="live-slide-value" id="liveWeatherValue">Loading...</div>
+          <div class="live-weather-detail" id="liveWeatherDetail"></div>
+        </div>
+      </div>
+    </div>
+    <div class="live-hint">Automatically updates the board with date, time, and local weather. Switch tabs to take over manually.</div>
+  </div>
+</div>
+
+<!-- ═══ Quick Send Panel ═══ -->
+<div class="tab-panel" id="panelSend">
+  <div class="send-panel">
+    <div class="board-hint" id="boardHint">
+      Got something to say? Flip it up on the board!
+      <span class="board-hint-arrow">&#8595;</span>
+    </div>
+    <div class="input-wrapper">
+      <input type="text" class="hidden-input" id="hiddenInput" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      <div class="visual-input" id="visualInput" onclick="document.getElementById('hiddenInput').focus();">
+        <span class="vi-placeholder" id="placeholder">Tap to type a message...</span>
+        <span class="vi-endzone" onclick="document.getElementById('hiddenInput').focus();"></span>
+      </div>
+      <div class="char-count"><span id="charCount">0</span> / 12</div>
+    </div>
+
+    <div class="action-row">
+      <div class="color-btns">
+        <button class="color-btn cb-green" onclick="insertColor('{', 'send')"></button>
+        <button class="color-btn cb-red" onclick="insertColor('}', 'send')"></button>
+        <button class="color-btn cb-yellow" onclick="insertColor('~', 'send')"></button>
+        <button class="color-btn cb-purple" onclick="insertColor('|', 'send')"></button>
+        <button class="color-btn cb-white" onclick="insertColor('\\', 'send')"></button>
+      </div>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>SEND</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Loop Panel ═══ -->
+<div class="tab-panel" id="panelLoop">
+  <div class="loop-panel">
+
+    <!-- Loop controls: group dropdown + edit/delete + start -->
+    <div class="loop-controls">
+      <div class="group-picker" id="groupPicker">
+        <div class="group-selected" id="groupSelected" onclick="toggleGroupDropdown()">
+          <span class="group-selected-name" id="groupSelectedName">Main</span>
+          <span class="group-selected-arrow"></span>
+        </div>
+        <div class="group-dropdown" id="groupDropdown"></div>
+      </div>
+      <button class="group-edit-btn" id="groupEditBtn" onclick="openEditGroup()" title="Edit group">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+      </button>
+      <button class="loop-start-btn" id="loopStartBtn" onclick="toggleLoop()"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> Start</button>
+    </div>
+
+    <!-- Group name modal -->
+    <div class="group-modal-overlay" id="groupModal" onclick="closeGroupModal()">
+      <div class="group-modal" onclick="event.stopPropagation()">
+        <h3 id="groupModalTitle">New Group</h3>
+        <input type="text" id="groupModalInput" placeholder="Group name" maxlength="30" autocomplete="off">
+        <div class="group-modal-actions">
+          <button class="delete-btn" id="groupModalDelete" onclick="deleteFromModal()" style="margin-right:auto; color:var(--red); border-color:var(--red);">Delete</button>
+          <button onclick="closeGroupModal()">Cancel</button>
+          <button class="primary" onclick="confirmGroupModal()">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loop item list -->
+    <div class="loop-list" id="loopList">
+      <div class="loop-empty" id="loopEmpty">
+        Add messages below to build your loop.<br>
+        Use transitions for visual flair between messages.
+      </div>
+    </div>
+
+    <!-- Add to loop -->
+    <div class="loop-add">
+      <div class="input-wrapper">
+        <input type="text" class="hidden-input" id="hiddenLoopInput" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+        <div class="visual-input" id="loopVisualInput" onclick="document.getElementById('hiddenLoopInput').focus();">
+          <span class="vi-placeholder" id="loopPlaceholder">Tap to add a message...</span>
+          <span class="vi-endzone" onclick="document.getElementById('hiddenLoopInput').focus();"></span>
+        </div>
+        <div class="char-count"><span id="loopCharCount">0</span> / 12</div>
+      </div>
+
+      <div class="action-row">
+        <div class="color-btns">
+          <button class="color-btn cb-green" onclick="insertColor('{', 'loop')"></button>
+          <button class="color-btn cb-red" onclick="insertColor('}', 'loop')"></button>
+          <button class="color-btn cb-yellow" onclick="insertColor('~', 'loop')"></button>
+          <button class="color-btn cb-purple" onclick="insertColor('|', 'loop')"></button>
+          <button class="color-btn cb-white" onclick="insertColor('\\', 'loop')"></button>
+        </div>
+        <button class="send-btn" id="addLoopBtn" onclick="addToLoop()" disabled>ADD</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Settings overlay -->
+<div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
+  <div class="settings-card">
+    <div class="settings-title">Display Connection</div>
+    <div class="conn-status-row">
+      <span class="conn-dot-sm" id="connDot"></span>
+      <span class="conn-status-text" id="connDotLabel">No connection</span>
+    </div>
+    <label class="settings-label">ESP32 IP Address</label>
+    <div class="settings-ip-row">
+      <input type="text" class="settings-ip-input" id="ipInput" placeholder="192.168.1.100" inputmode="url" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button class="settings-save-btn" onclick="saveIP()">Save</button>
+    </div>
+    <div class="settings-status dim" id="connStatus">Not configured</div>
+    <div class="settings-hint">
+      Enter the IP address of your SplitFlap ESP32 on the local network. The app sends POST requests to <code>http://&lt;ip&gt;/message</code>.
+    </div>
+
+    <div style="border-top:1px solid var(--border); margin-top:16px; padding-top:14px;">
+      <label class="settings-label">Appearance</label>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
+        <span style="font-size:13px; color:var(--text);" id="themeLabel">Dark Mode</span>
+        <div style="display:flex; align-items:center;">
+          <span class="theme-icon" id="themeIcon">&#9790;</span>
+          <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle light/dark mode"></button>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border); margin-top:16px; padding-top:14px;">
+      <div class="sched-toggle-row">
+        <label class="settings-label" style="margin-bottom:0">Schedule</label>
+        <button class="sched-toggle" id="schedToggle" onclick="toggleScheduleEnabled()" aria-label="Toggle schedule"></button>
+      </div>
+      <div class="sched-body disabled" id="schedBody">
+        <div class="sched-sub">Weekdays (Mon–Fri)</div>
+        <div class="sched-row">
+          <span class="sched-label">Open</span>
+          <input type="time" class="sched-time" id="schedWdOpen" value="09:00" onchange="saveSchedule()">
+        </div>
+        <div class="sched-row">
+          <span class="sched-label">Close</span>
+          <input type="time" class="sched-time" id="schedWdClose" value="17:55" onchange="saveSchedule()">
+        </div>
+        <div class="sched-sub">Weekends (Sat–Sun)</div>
+        <div class="sched-row">
+          <span class="sched-label">Open</span>
+          <input type="time" class="sched-time" id="schedWeOpen" value="10:00" onchange="saveSchedule()">
+        </div>
+        <div class="sched-row">
+          <span class="sched-label">Close</span>
+          <input type="time" class="sched-time" id="schedWeClose" value="16:00" onchange="saveSchedule()">
+        </div>
+        <div style="margin-top:10px;">
+          <div class="sched-sub" style="margin-bottom:4px;">On Open</div>
+          <select class="sched-select" id="schedOpenAction" onchange="toggleSchedOpenAction(); saveSchedule()" style="margin-top:4px;">
+            <option value="live">Live Mode</option>
+            <option value="loop">Loop Group</option>
+          </select>
+          <select class="sched-select" id="schedOpenGroup" onchange="saveSchedule()" style="margin-top:6px; display:none;"></select>
+        </div>
+        <div style="margin-top:10px;">
+          <div class="sched-sub" style="margin-bottom:4px;">On Close — Display Message</div>
+          <input type="text" class="sched-msg-input" id="schedCloseMsg" value="CLOSED" maxlength="12" onchange="saveSchedule()" style="margin-top:4px;">
+        </div>
+      </div>
+    </div>
+
+    <button class="settings-close" onclick="closeSettings()">Close</button>
+  </div>
+</div>
+
+
+<!-- Duration edit modal (shared by loop items + quick send) -->
+<div class="dur-modal-overlay" id="durModal" onclick="closeDurModal()">
+  <div class="dur-modal" onclick="event.stopPropagation()">
+    <div class="dur-modal-title">Duration</div>
+    <div class="dur-modal-value" id="durModalValue">30</div>
+    <div class="dur-modal-unit">seconds</div>
+    <div class="dur-modal-controls">
+      <button class="dur-modal-btn" onclick="adjustDurModal(-10)">-10</button>
+      <button class="dur-modal-btn" onclick="adjustDurModal(-1)">-1</button>
+      <button class="dur-modal-btn" onclick="adjustDurModal(1)">+1</button>
+      <button class="dur-modal-btn" onclick="adjustDurModal(10)">+10</button>
+    </div>
+    <div class="dur-modal-actions">
+      <button onclick="closeDurModal()">Cancel</button>
+      <button class="primary" onclick="saveDurModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- History drawer -->
+<div class="history-overlay" id="historyOverlay" onclick="closeHistory()"></div>
+<div class="history-drawer" id="historyDrawer">
+  <div class="history-header">
+    <span class="history-title">History</span>
+    <button class="history-close" onclick="closeHistory()">&#10005;</button>
+  </div>
+  <div class="history-filters">
+    <div class="history-search-wrap">
+      <svg class="history-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="history-search" id="historySearch" placeholder="Search messages..." oninput="renderHistory()">
+    </div>
+    <div class="history-date-row" id="historyDateRow"></div>
+  </div>
+  <div class="history-list" id="historyList"></div>
+</div>
+
+<!-- History action popup -->
+<div class="history-action-overlay" id="historyActionOverlay" onclick="closeHistoryAction()"></div>
+<div class="history-action-popup" id="historyActionPopup">
+  <div class="history-action-preview" id="historyActionPreview"></div>
+  <div class="history-action-btns">
+    <button class="history-action-btn primary" onclick="historyActionSendNow()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Send Now
+    </button>
+    <div class="history-add-row">
+      <select class="history-group-select" id="historyGroupSelect"></select>
+      <button class="history-action-btn" onclick="historyActionAddToGroup()" style="flex:1;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Add
+      </button>
+    </div>
+    <button class="history-action-btn" onclick="closeHistoryAction()" style="color:var(--text-dim); border-color:var(--border);">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ─── Keyboard avoidance (iOS) ────────────────────────────────
+if (window.visualViewport) {
+  let kbOpen = false;
+  let kbCloseTimer = null;
+  function onViewportResize() {
+    const vv = window.visualViewport;
+    const keyboardHeight = window.innerHeight - vv.height;
+    if (keyboardHeight > 100) {
+      // Keyboard is open
+      if (kbCloseTimer) { clearTimeout(kbCloseTimer); kbCloseTimer = null; }
+      kbOpen = true;
+      document.body.style.height = vv.height + 'px';
+      document.body.style.transform = 'translateY(' + vv.offsetTop + 'px)';
+      document.body.classList.add('kb-open');
+      setTimeout(() => {
+        const loopAdd = document.querySelector('.loop-add');
+        if (loopAdd && activeTab === 'loop') {
+          loopAdd.scrollIntoView({ block: 'end', behavior: 'smooth' });
+        }
+      }, 50);
+    } else {
+      // Delay close to avoid flicker when focus moves between elements
+      if (kbCloseTimer) clearTimeout(kbCloseTimer);
+      kbCloseTimer = setTimeout(() => {
+        kbOpen = false;
+        document.body.style.height = '';
+        document.body.style.transform = '';
+        document.body.classList.remove('kb-open');
+        kbCloseTimer = null;
+      }, 150);
+    }
+  }
+  window.visualViewport.addEventListener('resize', onViewportResize);
+  window.visualViewport.addEventListener('scroll', onViewportResize);
+}
+
+// Prevent color/action buttons from stealing focus (which closes keyboard on iOS)
+document.querySelectorAll('.color-btn, .send-btn').forEach(btn => {
+  btn.addEventListener('mousedown', (e) => { e.preventDefault(); });
+  btn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    btn.click();
+  }, { passive: false });
+});
+
+// ─── Theme toggle ─────────────────────────────────────────────
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  localStorage.setItem('postboard_theme', isLight ? 'light' : 'dark');
+  document.getElementById('themeIcon').innerHTML = isLight ? '&#9788;' : '&#9790;';
+  document.getElementById('themeLabel').textContent = isLight ? 'Light Mode' : 'Dark Mode';
+  document.querySelector('meta[name="theme-color"]').content = isLight ? '#f5f5f5' : '#0a0a0a';
+}
+// Restore saved theme (default: light)
+(function() {
+  const saved = localStorage.getItem('postboard_theme');
+  if (saved !== 'dark') {
+    document.body.classList.add('light');
+    document.getElementById('themeIcon').innerHTML = '&#9788;';
+    document.getElementById('themeLabel').textContent = 'Light Mode';
+    document.querySelector('meta[name="theme-color"]').content = '#f5f5f5';
+  }
+})();
+
+// ─── Settings / IP config ─────────────────────────────────────
+function openSettings() {
+  document.getElementById('settingsOverlay').classList.add('open');
+  const input = document.getElementById('ipInput');
+  input.value = espIP;
+  updateConnStatus();
+  loadScheduleUI();
+}
+
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+
+function saveIP() {
+  const val = document.getElementById('ipInput').value.trim();
+  if (val && !/^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(val) && !/^[a-zA-Z0-9._-]+(:\d+)?$/.test(val)) {
+    showToast('Invalid IP or hostname');
+    return;
+  }
+  espIP = val;
+  localStorage.setItem('splitflap_ip', val);
+  if (val) {
+    testConnection(val);
+    startHeartbeat();
+  } else {
+    setConnDot('unknown');
+    document.getElementById('connStatus').textContent = 'Not configured';
+    document.getElementById('connStatus').className = 'settings-status dim';
+    stopHeartbeat();
+    isConnected = null;
+    document.getElementById('connBanner').classList.remove('visible');
+  }
+}
+
+async function testConnection(ip) {
+  const status = document.getElementById('connStatus');
+  status.textContent = 'Testing connection...';
+  status.className = 'settings-status dim';
+  try {
+    await fetch('http://' + ip + '/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'text=' + encodeURIComponent(' '.repeat(NUM_MODULES)),
+      mode: 'no-cors',
+      signal: AbortSignal.timeout(3000)
+    });
+    // no-cors won't give us status, but if no error it likely reached
+    status.textContent = 'Saved — request sent (no-cors, check display)';
+    status.className = 'settings-status ok';
+    setConnDot('connected');
+  } catch (e) {
+    status.textContent = 'Could not reach ' + ip;
+    status.className = 'settings-status err';
+    setConnDot('disconnected');
+  }
+}
+
+function updateConnStatus() {
+  const status = document.getElementById('connStatus');
+  if (!espIP) {
+    status.textContent = 'Not configured';
+    status.className = 'settings-status dim';
+    setConnDot('unknown');
+  } else {
+    status.textContent = 'Configured: ' + espIP;
+    status.className = 'settings-status dim';
+  }
+}
+
+function setConnDot(state, label) {
+  const dot = document.getElementById('connDot');
+  dot.className = 'conn-dot-sm ' + state;
+  const lbl = document.getElementById('connDotLabel');
+  if (label) lbl.textContent = label;
+  else if (state === 'connected') lbl.textContent = 'Connected: ' + espIP;
+  else if (state === 'disconnected') lbl.textContent = 'Offline';
+  else lbl.textContent = 'No connection';
+}
+
+// Display status (removed from header — kept as no-op)
+function updateDisplayStatus(mode, detail) {}
+
+// Init connection
+let espIP = localStorage.getItem('splitflap_ip') || '';
+(function() {
+  if (espIP) {
+    setConnDot('connected', 'Connected: ' + espIP);
+  } else {
+    setConnDot('unknown');
+  }
+  updateDisplayStatus('idle');
+})();
+
+// ─── Tabs ────────────────────────────────────────────────────
+let activeTab = 'live';
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tabLive').classList.toggle('active', tab === 'live');
+  document.getElementById('tabSend').classList.toggle('active', tab === 'send');
+  document.getElementById('tabLoop').classList.toggle('active', tab === 'loop');
+  document.getElementById('panelLive').classList.toggle('active', tab === 'live');
+  document.getElementById('panelSend').classList.toggle('active', tab === 'send');
+  document.getElementById('panelLoop').classList.toggle('active', tab === 'loop');
+  document.querySelector('.board-area').classList.toggle('send-mode', tab === 'send');
+
+  if (tab === 'send') document.getElementById('hiddenInput').focus();
+  updateBoardHint();
+  updatePlayPauseIcon();
+  updateTimerVisibility();
+}
+
+// ─── Config ──────────────────────────────────────────────────
+const NUM_MODULES = 12;
+
+const TYPED_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.?-$'#,!@&";
+const COLOR_CHARS = "{}~|\\";
+
+const COLOR_MAP = {
+  '{': { name: 'green',  css: 'clr-green',  hex: '#22c55e' },
+  '}': { name: 'red',    css: 'clr-red',    hex: '#ef4444' },
+  '~': { name: 'yellow', css: 'clr-yellow', hex: '#eab308' },
+  '|': { name: 'purple', css: 'clr-purple', hex: '#a855f7' },
+  '\\':{ name: 'white',  css: 'clr-white',  hex: '#f0f0f0' }
+};
+
+const FLAP_SEQ = [
+  ' ','A','B','C','D','E','F','G','H','I','J','K','L','M',
+  'N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+  '{','0','1','2','3','4','5','6','7','8','9','}',
+  '.','?','-','$',"'",'#','~','|',',','!','@','&','\\'
+];
+
+const TRANSITIONS = [
+  { text: '{}~|\\{}~|\\{}', label: 'Multi' },
+  { text: '{{{{{{{{{{{{', label: 'Green' },
+  { text: '}}}}}}}}}}}}', label: 'Red' },
+  { text: '~~~~~~~~~~~~', label: 'Yellow' },
+  { text: '||||||||||||', label: 'Purple' },
+  { text: '\\\\\\\\\\\\\\\\\\\\\\\\', label: 'White' },
+  { text: '            ', label: 'Blank' },
+  { text: '............', label: 'Dots' },
+  { text: '------------', label: 'Dashes' },
+];
+
+// ─── State ───────────────────────────────────────────────────
+let currentDisplay = '';
+let flapTimers = [];
+
+// Quick Send state
+let buffer = [];
+let cursor = 0;
+let sendSelectAll = false;
+
+// Loop state
+let loopBuffer = [];
+let loopCursor = 0;
+let loopSelectAll = false;
+let loopMessages = JSON.parse(localStorage.getItem('splitflap_loop') || '[]');
+let loopRunning = false;
+let loopTimer = null;
+let loopIndex = 0;
+
+// ─── Board ───────────────────────────────────────────────────
+function initBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  for (let i = 0; i < NUM_MODULES; i++) {
+    const mod = document.createElement('div');
+    mod.className = 'flap-module';
+    mod.innerHTML = '<span class="flap-char"> </span>';
+    mod.id = 'mod-' + i;
+    board.appendChild(mod);
+  }
+}
+
+function setFlapChar(idx, ch) {
+  const mod = document.getElementById('mod-' + idx);
+  if (!mod) return;
+  const charEl = mod.querySelector('.flap-char');
+  if (COLOR_MAP[ch]) {
+    mod.className = 'flap-module color-flap';
+    mod.style.background = COLOR_MAP[ch].hex;
+    charEl.textContent = '';
+  } else {
+    mod.className = 'flap-module';
+    mod.style.background = '';
+    charEl.textContent = ch || ' ';
+  }
+}
+
+function updateBoard(text) {
+  const target = text.padEnd(NUM_MODULES, ' ').substring(0, NUM_MODULES);
+  const prev = currentDisplay || ' '.repeat(NUM_MODULES);
+  currentDisplay = target;
+  flapTimers.forEach(t => clearInterval(t));
+  flapTimers = [];
+  for (let i = 0; i < NUM_MODULES; i++) {
+    const fromCh = prev[i] || ' ';
+    const toCh = target[i] || ' ';
+    if (fromCh === toCh) { setFlapChar(i, toCh); continue; }
+    let fromIdx = FLAP_SEQ.indexOf(fromCh);
+    let toIdx = FLAP_SEQ.indexOf(toCh);
+    if (fromIdx < 0) fromIdx = 0;
+    if (toIdx < 0) toIdx = 0;
+    let steps = toIdx - fromIdx;
+    if (steps <= 0) steps += FLAP_SEQ.length;
+    const FLIP_MS = 70;
+    const stagger = i * 50;
+    (function(mi, si, ns) {
+      let step = 0;
+      setTimeout(() => {
+        const timer = setInterval(() => {
+          step++;
+          setFlapChar(mi, FLAP_SEQ[(si + step) % FLAP_SEQ.length]);
+          if (step >= ns) clearInterval(timer);
+        }, FLIP_MS);
+        flapTimers.push(timer);
+      }, stagger);
+    })(i, fromIdx, steps);
+  }
+}
+
+// ─── Visual Input (shared) ───────────────────────────────────
+function renderVisualInput(which) {
+  const isSend = which === 'send';
+  const buf = isSend ? buffer : loopBuffer;
+  const cur = isSend ? cursor : loopCursor;
+  const inputEl = document.getElementById(isSend ? 'hiddenInput' : 'hiddenLoopInput');
+  const el = document.getElementById(isSend ? 'visualInput' : 'loopVisualInput');
+  const phId = isSend ? 'placeholder' : 'loopPlaceholder';
+
+  // Clear tokens
+  el.querySelectorAll('.vi-token, .vi-cursor, .vi-endzone').forEach(n => n.remove());
+
+  const isFocused = document.activeElement === inputEl;
+  const ph = document.getElementById(phId);
+  if (ph) ph.style.display = (buf.length === 0 && !isFocused) ? 'block' : 'none';
+  el.classList.toggle('focused', isFocused);
+
+  for (let i = 0; i < buf.length; i++) {
+    if (isFocused && cur === i) {
+      const c = document.createElement('span');
+      c.className = 'vi-cursor';
+      el.appendChild(c);
+    }
+    const token = document.createElement('span');
+    const isSelected = isSend ? sendSelectAll : loopSelectAll;
+    token.className = 'vi-token' + (isSelected ? ' selected' : '');
+    const ch = buf[i];
+    if (COLOR_MAP[ch]) {
+      const chip = document.createElement('span');
+      chip.className = 'vi-color ' + COLOR_MAP[ch].css;
+      token.appendChild(chip);
+    } else {
+      const span = document.createElement('span');
+      if (ch === ' ') {
+        span.className = 'vi-char is-space';
+      } else {
+        span.className = 'vi-char';
+        span.textContent = ch;
+      }
+      token.appendChild(span);
+    }
+    token.addEventListener('click', (function(pos) {
+      return function(e) {
+        e.stopPropagation();
+        const rect = this.getBoundingClientRect();
+        const newCur = (e.clientX < rect.left + rect.width / 2) ? pos : pos + 1;
+        if (isSend) { cursor = newCur; } else { loopCursor = newCur; }
+        inputEl.focus();
+        renderVisualInput(which);
+      };
+    })(i));
+    el.appendChild(token);
+  }
+
+  if (isFocused && cur >= buf.length) {
+    const c = document.createElement('span');
+    c.className = 'vi-cursor';
+    el.appendChild(c);
+  }
+
+  const endzone = document.createElement('span');
+  endzone.className = 'vi-endzone';
+  endzone.onclick = () => {
+    if (isSend) { cursor = buffer.length; } else { loopCursor = loopBuffer.length; }
+    inputEl.focus();
+    renderVisualInput(which);
+  };
+  el.appendChild(endzone);
+
+  // Update counts
+  if (isSend) {
+    document.getElementById('charCount').textContent = buf.length;
+    const hasContent = buf.length > 0 && buf.some(c => c !== ' ');
+    document.getElementById('sendBtn').disabled = !hasContent;
+  } else {
+    document.getElementById('loopCharCount').textContent = buf.length;
+    const hasContent = buf.length > 0 && buf.some(c => c !== ' ');
+    document.getElementById('addLoopBtn').disabled = !hasContent;
+  }
+}
+
+// ─── Keyboard handlers ──────────────────────────────────────
+function setupKeyHandler(inputEl, which) {
+  inputEl.addEventListener('keydown', (e) => {
+    const isSend = which === 'send';
+    let buf = isSend ? buffer : loopBuffer;
+    let cur = isSend ? cursor : loopCursor;
+
+    // Ctrl/Cmd shortcuts
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'a') {
+        // Select all — flag so next Backspace/Delete clears buffer
+        e.preventDefault();
+        if (isSend) { sendSelectAll = true; } else { loopSelectAll = true; }
+        renderVisualInput(which);
+      }
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (isSend) sendMessage(); else addToLoop();
+      return;
+    }
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      if ((isSend && sendSelectAll) || (!isSend && loopSelectAll)) {
+        buf.length = 0; cur = 0;
+        if (isSend) sendSelectAll = false; else loopSelectAll = false;
+      } else if (cur > 0) { buf.splice(cur - 1, 1); cur--; }
+      if (isSend) { buffer = buf; cursor = cur; } else { loopBuffer = buf; loopCursor = cur; }
+      renderVisualInput(which);
+      return;
+    }
+    if (e.key === 'Delete') {
+      e.preventDefault();
+      if ((isSend && sendSelectAll) || (!isSend && loopSelectAll)) {
+        buf.length = 0; cur = 0;
+        if (isSend) sendSelectAll = false; else loopSelectAll = false;
+      } else if (cur < buf.length) { buf.splice(cur, 1); }
+      if (isSend) { buffer = buf; cursor = cur; } else { loopBuffer = buf; loopCursor = cur; }
+      renderVisualInput(which);
+      return;
+    }
+
+    // Any other key clears select-all state
+    if (isSend) sendSelectAll = false; else loopSelectAll = false;
+
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); if (cur > 0) cur--; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); if (cur < buf.length) cur++; }
+    if (e.key === 'Home')  { e.preventDefault(); cur = 0; }
+    if (e.key === 'End')   { e.preventDefault(); cur = buf.length; }
+
+    if (e.key.length === 1) {
+      e.preventDefault();
+      const ch = e.key.toUpperCase();
+      if (TYPED_CHARS.includes(ch) && buf.length < NUM_MODULES) {
+        buf.splice(cur, 0, ch);
+        cur++;
+      }
+    }
+
+    if (isSend) { buffer = buf; cursor = cur; } else { loopBuffer = buf; loopCursor = cur; }
+    renderVisualInput(which);
+  });
+
+  inputEl.addEventListener('input', () => { inputEl.value = ''; });
+  inputEl.addEventListener('focus', () => renderVisualInput(which));
+  inputEl.addEventListener('blur', () => renderVisualInput(which));
+}
+
+const hiddenInput = document.getElementById('hiddenInput');
+const hiddenLoopInput = document.getElementById('hiddenLoopInput');
+setupKeyHandler(hiddenInput, 'send');
+setupKeyHandler(hiddenLoopInput, 'loop');
+
+function insertColor(ch, which) {
+  if (which === 'send') {
+    if (buffer.length < NUM_MODULES) { buffer.splice(cursor, 0, ch); cursor++; }
+    renderVisualInput('send');
+    hiddenInput.focus();
+  } else {
+    if (loopBuffer.length < NUM_MODULES) { loopBuffer.splice(loopCursor, 0, ch); loopCursor++; }
+    renderVisualInput('loop');
+    hiddenLoopInput.focus();
+  }
+}
+
+// ─── Send to display ─────────────────────────────────────────
+async function sendToDisplay(text, interrupt) {
+  const padded = text.padEnd(NUM_MODULES, ' ').substring(0, NUM_MODULES);
+  updateBoard(padded);
+  if (!espIP) return true;
+  try {
+    let body = 'text=' + encodeURIComponent(padded);
+    if (interrupt) body += '&interrupt=' + interrupt;
+    await fetch('http://' + espIP + '/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body,
+      mode: 'no-cors',
+      signal: AbortSignal.timeout(3000)
+    });
+    return true;
+  } catch (e) { return false; }
+}
+
+let lastSentText = '';
+
+function sendMessage() {
+  if (buffer.length === 0) return;
+  const hasContent = buffer.some(c => c !== ' ');
+  if (!hasContent) return;
+
+  const text = buffer.join('').substring(0, NUM_MODULES);
+
+  if (liveRunning) stopLiveMode();
+  if (loopRunning) stopLoop();
+  lastSentText = text;
+  sendToDisplay(lastSentText, 0); // indefinite — no auto-expire
+  buffer = [];
+  cursor = 0;
+  hiddenInput.value = '';
+  renderVisualInput('send');
+  showToast('Sent!');
+  logHistory(lastSentText, 'send');
+  showClearBtn(true);
+  updateDisplayStatus('send', 'Quick Send');
+
+  // Show "Add to Loop" option under board
+  const btn = document.getElementById('addToLoopBtn');
+  btn.textContent = '+ Add to Loop';
+  btn.classList.remove('added');
+  btn.classList.add('visible');
+}
+
+
+function addLastToLoop() {
+  if (!lastSentText) return;
+
+  // Always add to Default group
+  if (activeGroupId === '__default') {
+    // Already on Default — just append
+    loopMessages.push({ text: lastSentText, duration: 30 });
+    saveLoop();
+    renderLoopList();
+  } else {
+    // Add to Default's stored messages without switching groups
+    const defaultMsgs = JSON.parse(localStorage.getItem('splitflap_loop') || '[]');
+    defaultMsgs.push({ text: lastSentText, duration: 30 });
+    localStorage.setItem('splitflap_loop', JSON.stringify(defaultMsgs));
+    PRESET_GROUPS[0].messages = defaultMsgs;
+  }
+
+  const btn = document.getElementById('addToLoopBtn');
+  btn.textContent = 'Added to Main!';
+  btn.classList.add('added');
+  setTimeout(() => {
+    btn.classList.remove('visible');
+  }, 1500);
+}
+
+// ─── Loop ────────────────────────────────────────────────────
+function saveLoop() {
+  localStorage.setItem('splitflap_loop', JSON.stringify(loopMessages));
+}
+
+function addToLoop() {
+  if (loopBuffer.length === 0) return;
+  const text = loopBuffer.join('').substring(0, NUM_MODULES);
+  const dur = 30;
+  loopMessages.push({ text, duration: dur });
+  newlyInsertedIdx = loopMessages.length - 1;
+  saveLoop();
+  loopBuffer = [];
+  loopCursor = 0;
+  hiddenLoopInput.value = '';
+  hiddenLoopInput.blur();
+  renderVisualInput('loop');
+  renderLoopList();
+  showToast('Added to loop');
+}
+
+function addTransition(text) {
+  loopMessages.push({ text: text.substring(0, NUM_MODULES), duration: 3 });
+  newlyInsertedIdx = loopMessages.length - 1;
+  saveLoop();
+  renderLoopList();
+}
+
+let undoItem = null;
+let undoIdx = null;
+let undoTimer = null;
+
+function removeLoopItem(idx) {
+  const removed = loopMessages.splice(idx, 1)[0];
+  saveLoop();
+  renderLoopList();
+  if (loopMessages.length === 0 && loopRunning) stopLoop();
+
+  // Store undo state
+  undoItem = removed;
+  undoIdx = Math.min(idx, loopMessages.length);
+  clearTimeout(undoTimer);
+  showUndoToast('Deleted');
+  undoTimer = setTimeout(() => { undoItem = null; undoIdx = null; }, 4000);
+}
+
+function undoDelete() {
+  if (!undoItem) return;
+  loopMessages.splice(undoIdx, 0, undoItem);
+  undoItem = null;
+  undoIdx = null;
+  clearTimeout(undoTimer);
+  saveLoop();
+  renderLoopList();
+  hideToast();
+  showToast('Restored');
+}
+
+function showUndoToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.innerHTML = '<div class="toast-content"><span>' + msg + '</span><button class="toast-undo" onclick="undoDelete()">Undo</button></div>';
+  toast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.classList.remove('visible'); toast.textContent = ''; }, 4000);
+}
+
+function hideToast() {
+  const toast = document.getElementById('toast');
+  toast.classList.remove('visible');
+  clearTimeout(toastTimer);
+}
+
+function moveLoopItem(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= loopMessages.length) return;
+  const tmp = loopMessages[idx];
+  loopMessages[idx] = loopMessages[newIdx];
+  loopMessages[newIdx] = tmp;
+  saveLoop();
+  renderLoopList();
+}
+
+function updateLoopDuration(idx, val) {
+  const dur = parseInt(val);
+  if (dur >= 3 && dur <= 600) loopMessages[idx].duration = dur;
+  else if (dur > 600) { loopMessages[idx].duration = 600; showToast('Max 600s (10 min)'); }
+  else if (dur < 3 && dur > 0) { loopMessages[idx].duration = 3; showToast('Min 3 seconds'); }
+  saveLoop();
+}
+
+// ─── Duration Modal (Loop mode) ─────────────────────────────
+let durModalIdx = null;
+let durModalVal = 30;
+
+function openDurModal(idx) {
+  durModalIdx = idx;
+  durModalVal = loopMessages[idx].duration;
+  document.getElementById('durModalValue').textContent = durModalVal;
+  document.getElementById('durModal').classList.add('open');
+}
+
+function closeDurModal() {
+  document.getElementById('durModal').classList.remove('open');
+  durModalIdx = null;
+}
+
+function adjustDurModal(delta) {
+  durModalVal = Math.max(3, Math.min(600, durModalVal + delta));
+  document.getElementById('durModalValue').textContent = durModalVal;
+}
+
+function saveDurModal() {
+  if (durModalIdx !== null && loopMessages[durModalIdx]) {
+    loopMessages[durModalIdx].duration = durModalVal;
+    saveLoop();
+    renderLoopList();
+  }
+  closeDurModal();
+}
+
+
+let newlyInsertedIdx = null;
+
+function renderLoopList() {
+  const list = document.getElementById('loopList');
+  list.innerHTML = '';
+
+  if (loopMessages.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'loop-empty';
+    empty.innerHTML = 'Add messages below to build your loop.<br>Use transitions for visual flair between messages.';
+    list.appendChild(empty);
+    return;
+  }
+
+  loopMessages.forEach((msg, idx) => {
+    const item = document.createElement('div');
+    item.className = 'loop-item' + (loopRunning && idx === loopIndex ? ' now-playing' : '') + (newlyInsertedIdx === idx ? ' slide-in' : '');
+    item.id = 'loop-item-' + idx;
+    item.draggable = true;
+    item.dataset.idx = idx;
+
+    // Drag handle
+    const handle = document.createElement('div');
+    handle.className = 'li-drag';
+    handle.innerHTML = '<svg viewBox="0 0 16 16"><circle cx="5" cy="3" r="1.5"/><circle cx="11" cy="3" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="13" r="1.5"/><circle cx="11" cy="13" r="1.5"/></svg>';
+    item.appendChild(handle);
+
+    // Preview (tappable to jump when loop is running)
+    const preview = document.createElement('div');
+    preview.className = 'li-preview';
+    if (loopRunning) preview.style.cursor = 'pointer';
+    preview.onclick = (function(i) {
+      return function(e) {
+        e.stopPropagation();
+        if (loopRunning) jumpToLoopItem(i);
+      };
+    })(idx);
+    const display = msg.text.substring(0, NUM_MODULES);
+    for (let i = 0; i < display.length; i++) {
+      const ch = display[i];
+      if (COLOR_MAP[ch]) {
+        const chip = document.createElement('span');
+        chip.className = 'li-color-chip';
+        chip.style.background = COLOR_MAP[ch].hex;
+        preview.appendChild(chip);
+      } else {
+        preview.appendChild(document.createTextNode(ch));
+      }
+    }
+    item.appendChild(preview);
+
+    // Duration (tappable — opens modal)
+    const dur = document.createElement('div');
+    dur.className = 'li-duration';
+    dur.onclick = (e) => { e.stopPropagation(); openDurModal(idx); };
+    dur.innerHTML = '<svg class="li-duration-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+      + '<span class="li-duration-label">' + msg.duration + 's</span>';
+    item.appendChild(dur);
+
+    // Live countdown (visible only on now-playing tile)
+    const cd = document.createElement('span');
+    cd.className = 'li-countdown';
+    cd.id = 'li-cd-' + idx;
+    item.appendChild(cd);
+
+    // Delete button only
+    const actions = document.createElement('div');
+    actions.className = 'li-actions';
+    const del = document.createElement('button');
+    del.className = 'li-btn delete';
+    del.innerHTML = '&#10005;';
+    del.title = 'Remove';
+    del.onclick = () => removeLoopItem(idx);
+    actions.appendChild(del);
+
+    item.appendChild(actions);
+    list.appendChild(item);
+
+    // Insert button after each item (between rows)
+    if (idx < loopMessages.length - 1) {
+      const insertRow = document.createElement('div');
+      insertRow.className = 'loop-insert-row';
+      const insertBtn = document.createElement('button');
+      insertBtn.className = 'loop-insert-btn';
+      insertBtn.innerHTML = '+';
+      insertBtn.onclick = (e) => { e.stopPropagation(); showInsertPopup(idx + 1, insertRow); };
+      insertRow.appendChild(insertBtn);
+      list.appendChild(insertRow);
+    }
+  });
+
+  // Setup drag-and-drop after rendering
+  setupDragAndDrop();
+
+  // Clear animation flag after render
+  if (newlyInsertedIdx !== null) {
+    const animIdx = newlyInsertedIdx;
+    newlyInsertedIdx = null;
+    // Scroll the new item into view
+    const newEl = document.getElementById('loop-item-' + animIdx);
+    if (newEl) newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// ─── Drag & drop reorder ──────────────────────────────────────
+let dragSrcIdx = null;
+let dragOverIdx = null;
+
+function setupDragAndDrop() {
+  const items = document.querySelectorAll('.loop-item');
+  items.forEach(item => {
+    // Drag events
+    item.addEventListener('dragstart', onDragStart);
+    item.addEventListener('dragover', onDragOver);
+    item.addEventListener('dragenter', onDragEnter);
+    item.addEventListener('dragleave', onDragLeave);
+    item.addEventListener('drop', onDrop);
+    item.addEventListener('dragend', onDragEnd);
+
+    // Touch events for mobile
+    const handle = item.querySelector('.li-drag');
+    if (handle) {
+      handle.addEventListener('touchstart', onTouchStart, { passive: false });
+    }
+  });
+}
+
+function onDragStart(e) {
+  dragSrcIdx = parseInt(this.dataset.idx);
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragSrcIdx);
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function onDragEnter(e) {
+  e.preventDefault();
+  this.classList.add('drag-over');
+}
+
+function onDragLeave() {
+  this.classList.remove('drag-over');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  this.classList.remove('drag-over');
+  const toIdx = parseInt(this.dataset.idx);
+  if (dragSrcIdx !== null && dragSrcIdx !== toIdx) {
+    const moved = loopMessages.splice(dragSrcIdx, 1)[0];
+    loopMessages.splice(toIdx, 0, moved);
+    // Adjust loopIndex if needed
+    if (loopRunning) {
+      if (dragSrcIdx === loopIndex) loopIndex = toIdx;
+      else if (dragSrcIdx < loopIndex && toIdx >= loopIndex) loopIndex--;
+      else if (dragSrcIdx > loopIndex && toIdx <= loopIndex) loopIndex++;
+    }
+    saveLoop();
+    renderLoopList();
+  }
+}
+
+function onDragEnd() {
+  this.classList.remove('dragging');
+  dragSrcIdx = null;
+  document.querySelectorAll('.loop-item').forEach(el => el.classList.remove('drag-over'));
+}
+
+// ─── Touch drag for mobile ────────────────────────────────────
+let touchItem = null;
+let touchClone = null;
+let touchStartY = 0;
+let touchIdx = null;
+
+function onTouchStart(e) {
+  const item = e.target.closest('.loop-item');
+  if (!item) return;
+  e.preventDefault();
+
+  touchIdx = parseInt(item.dataset.idx);
+  touchItem = item;
+  touchStartY = e.touches[0].clientY;
+
+  // Create floating clone
+  const rect = item.getBoundingClientRect();
+  touchClone = item.cloneNode(true);
+  touchClone.style.cssText = 'position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;z-index:200;opacity:0.85;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,0.4);';
+  document.body.appendChild(touchClone);
+  item.classList.add('dragging');
+
+  document.addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchend', onTouchEnd);
+}
+
+function onTouchMove(e) {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const dy = touch.clientY - touchStartY;
+  if (touchClone) {
+    const rect = touchItem.getBoundingClientRect();
+    touchClone.style.top = (rect.top + dy) + 'px';
+  }
+
+  // Find item under finger
+  const items = document.querySelectorAll('.loop-item');
+  items.forEach(el => el.classList.remove('drag-over'));
+  const overEl = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (overEl) {
+    const overItem = overEl.closest('.loop-item');
+    if (overItem && overItem !== touchItem) {
+      overItem.classList.add('drag-over');
+    }
+  }
+}
+
+function onTouchEnd(e) {
+  document.removeEventListener('touchmove', onTouchMove);
+  document.removeEventListener('touchend', onTouchEnd);
+
+  // Find drop target
+  const touch = e.changedTouches[0];
+  const overEl = document.elementFromPoint(touch.clientX, touch.clientY);
+  const overItem = overEl ? overEl.closest('.loop-item') : null;
+
+  if (overItem && overItem !== touchItem) {
+    const toIdx = parseInt(overItem.dataset.idx);
+    if (touchIdx !== null && touchIdx !== toIdx) {
+      const moved = loopMessages.splice(touchIdx, 1)[0];
+      loopMessages.splice(toIdx, 0, moved);
+      if (loopRunning) {
+        if (touchIdx === loopIndex) loopIndex = toIdx;
+        else if (touchIdx < loopIndex && toIdx >= loopIndex) loopIndex--;
+        else if (touchIdx > loopIndex && toIdx <= loopIndex) loopIndex++;
+      }
+      saveLoop();
+    }
+  }
+
+  if (touchClone) { touchClone.remove(); touchClone = null; }
+  if (touchItem) { touchItem.classList.remove('dragging'); touchItem = null; }
+  document.querySelectorAll('.loop-item').forEach(el => el.classList.remove('drag-over'));
+  touchIdx = null;
+  renderLoopList();
+}
+
+function toggleLoop() {
+  if (loopRunning) stopLoop(); else startLoop();
+}
+
+function startLoop() {
+  if (loopMessages.length === 0) return;
+  if (liveRunning) stopLiveMode();
+  loopRunning = true;
+  loopIndex = 0;
+  updateLoopUI();
+  const ag = getActiveGroup();
+  updateDisplayStatus('loop', ag ? ag.name : 'Loop');
+  advanceLoop();
+  updatePlayPauseIcon();
+}
+
+function advanceLoop() {
+  if (!loopRunning || loopMessages.length === 0) { stopLoop(); return; }
+  if (loopIndex >= loopMessages.length) loopIndex = 0;
+
+  const msg = loopMessages[loopIndex];
+  sendToDisplay(msg.text);
+  logHistory(msg.text, 'loop');
+  renderLoopList();
+  startCountdown(msg.duration);
+  showClearBtn(true);
+
+  loopTimer = setTimeout(() => {
+    loopIndex++;
+    advanceLoop();
+  }, msg.duration * 1000);
+}
+
+function jumpToLoopItem(idx) {
+  if (!loopRunning || idx < 0 || idx >= loopMessages.length) return;
+  clearTimeout(loopTimer);
+  loopIndex = idx;
+  advanceLoop();
+}
+
+function stopLoop() {
+  loopRunning = false;
+  clearTimeout(loopTimer);
+  stopCountdown();
+  updateLoopUI();
+  updateDisplayStatus('idle');
+  renderLoopList();
+  updatePlayPauseIcon();
+}
+
+function updateLoopUI() {
+  const btn = document.getElementById('loopStartBtn');
+  if (loopRunning) {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg> Stop';
+    btn.classList.add('running');
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> Start';
+    btn.classList.remove('running');
+  }
+  updatePlayPauseIcon();
+}
+
+// ─── Loop Groups ─────────────────────────────────────────────
+let loopGroups = JSON.parse(localStorage.getItem('splitflap_groups') || '[]');
+let activeGroupId = localStorage.getItem('splitflap_active_group') || '__default';
+
+const PRESET_GROUPS = [
+  {
+    id: '__default',
+    name: 'Main',
+    preset: true,
+    messages: [] // populated from localStorage splitflap_loop on first load
+  }
+];
+
+// Default group's messages — seed with shipping messages on first run
+const DEFAULT_MAIN_MESSAGES = [
+  { text: 'SHIP IT HERE', duration: 30 },
+  { text: 'WE PACK IT  ', duration: 30 },
+  { text: ' PO BOXES   ', duration: 30 },
+  { text: 'NOTARY AVAIL', duration: 30 },
+  { text: 'PACKAGE HERE', duration: 30 },
+  { text: 'BOXES & TAPE', duration: 30 },
+  { text: ' DROP OFF   ', duration: 30 },
+  { text: 'WE SHIP INTL', duration: 30 },
+  { text: 'COPY & PRINT', duration: 30 },
+  { text: ' MAIL BOXES ', duration: 30 },
+  { text: 'SHIP UPS FDX', duration: 30 },
+  { text: 'FAX SERVICE ', duration: 30 },
+  { text: 'KEYS CUT    ', duration: 30 },
+  { text: 'SHRED DOCS  ', duration: 30 },
+  { text: 'BOZEMAN MT  ', duration: 30 },
+];
+const storedMain = localStorage.getItem('splitflap_loop');
+const parsedMain = storedMain ? JSON.parse(storedMain) : [];
+if (!parsedMain || parsedMain.length === 0) {
+  PRESET_GROUPS[0].messages = DEFAULT_MAIN_MESSAGES.map(m => ({...m}));
+  localStorage.setItem('splitflap_loop', JSON.stringify(PRESET_GROUPS[0].messages));
+} else {
+  PRESET_GROUPS[0].messages = parsedMain;
+}
+
+// Built-in starter groups — copied into loopGroups once on first run
+const BUILTIN_GROUPS = [
+  {
+    id: '__parks_rec',
+    name: 'Parks & Rec',
+    messages: [
+      { text: 'TREAT YOSELF', duration: 30 },
+      { text: ' WAFFLES!!! ', duration: 30 },
+      { text: 'I KNOW WHAT ', duration: 15 },
+      { text: " I'M ABOUT  ", duration: 15 },
+      { text: 'BYE BYE LIL ', duration: 15 },
+      { text: 'SEBASTIAN   ', duration: 15 },
+      { text: 'LITERALLY   ', duration: 30 },
+      { text: 'THE WORST   ', duration: 15 },
+      { text: 'PAWNEE IN   ', duration: 15 },
+      { text: ' BOZEMAN MT ', duration: 30 },
+      { text: 'FINE LEATHER', duration: 15 },
+      { text: '   GOODS    ', duration: 15 },
+      { text: 'MOUSE RAT   ', duration: 30 },
+      { text: '5000 CANDLE ', duration: 15 },
+      { text: 'BREAKFAST   ', duration: 15 },
+      { text: 'KNOPE 2026  ', duration: 30 },
+      { text: 'NEVER HALF  ', duration: 15 },
+      { text: ' ASS 2 THNG ', duration: 15 },
+      { text: "DON'T START ", duration: 15 },
+      { text: '  CARING    ', duration: 15 },
+      { text: 'EVERYTHING  ', duration: 15 },
+      { text: ' HURTS AND  ', duration: 15 },
+      { text: " I'M DYING  ", duration: 15 },
+      { text: 'CALZONES!!! ', duration: 30 },
+    ]
+  },
+  {
+    id: '__friends',
+    name: 'Friends',
+    messages: [
+      { text: 'HOW YOU DOIN', duration: 30 },
+      { text: '  PIVOT!!!  ', duration: 15 },
+      { text: '  PIVOT!!!  ', duration: 15 },
+      { text: '  PIVOT!!!  ', duration: 15 },
+      { text: 'WERE ON A   ', duration: 15 },
+      { text: '   BREAK!   ', duration: 15 },
+      { text: 'COULD I BE  ', duration: 15 },
+      { text: 'ANY MORE    ', duration: 15 },
+      { text: ' SARCASTIC  ', duration: 15 },
+      { text: ' SMELLY CAT ', duration: 15 },
+      { text: ' SMELLY CAT ', duration: 15 },
+      { text: ' OH  MY GOD ', duration: 30 },
+      { text: 'UNAGI!!!!!! ', duration: 30 },
+      { text: 'SEVEN SEVEN ', duration: 15 },
+      { text: '   SEVEN!!  ', duration: 15 },
+      { text: ' THEY DONT  ', duration: 15 },
+      { text: '  KNOW THAT ', duration: 15 },
+      { text: '  WE KNOW   ', duration: 15 },
+      { text: 'MOIST MAKER ', duration: 30 },
+      { text: ' MY SANDWICH', duration: 30 },
+      { text: 'CENTRAL PERK', duration: 30 },
+      { text: ' ILL BE     ', duration: 15 },
+      { text: ' THERE 4 U  ', duration: 15 },
+      { text: 'MISSISSIPPI ', duration: 15 },
+      { text: 'LESSLY      ', duration: 15 },
+    ]
+  },
+  {
+    id: '__haverford',
+    name: 'Haverford',
+    messages: [
+      { text: '   ZERTS    ', duration: 30 },
+      { text: ' TREE-TREES ', duration: 30 },
+      { text: '  SAMMIES   ', duration: 30 },
+      { text: ' SANDOOZLES ', duration: 30 },
+      { text: 'CHICKY-CACC ', duration: 30 },
+      { text: ' PRE-BIRDS  ', duration: 30 },
+      { text: 'FUTURE BIRDS', duration: 30 },
+      { text: ' SUPER WATER', duration: 30 },
+      { text: ' FOOD RAKES ', duration: 30 },
+    ]
+  }
+];
+
+// Seed built-in groups into loopGroups on first run
+(function seedBuiltins() {
+  let seeded = false;
+  BUILTIN_GROUPS.forEach(bg => {
+    if (!loopGroups.find(g => g.id === bg.id)) {
+      loopGroups.push({ id: bg.id, name: bg.name, messages: bg.messages.map(m => ({...m})) });
+      seeded = true;
+    }
+  });
+  if (seeded) {
+    localStorage.setItem('splitflap_groups', JSON.stringify(loopGroups));
+  }
+})();
+
+function saveGroups() {
+  localStorage.setItem('splitflap_groups', JSON.stringify(loopGroups));
+  localStorage.setItem('splitflap_active_group', activeGroupId);
+}
+
+function getAllGroups() {
+  return [...PRESET_GROUPS, ...loopGroups];
+}
+
+function getActiveGroup() {
+  return getAllGroups().find(g => g.id === activeGroupId);
+}
+
+function toggleGroupDropdown() {
+  const dd = document.getElementById('groupDropdown');
+  const sel = document.getElementById('groupSelected');
+  const isOpen = dd.classList.contains('open');
+  dd.classList.toggle('open');
+  sel.classList.toggle('open');
+  if (!isOpen) renderGroupDropdown();
+}
+
+function closeGroupDropdown() {
+  document.getElementById('groupDropdown').classList.remove('open');
+  document.getElementById('groupSelected').classList.remove('open');
+}
+
+function renderGroupDropdown() {
+  const dd = document.getElementById('groupDropdown');
+  dd.innerHTML = '';
+  const all = getAllGroups();
+
+  all.forEach(g => {
+    const opt = document.createElement('div');
+    opt.className = 'group-option' + (activeGroupId === g.id ? ' selected' : '');
+
+    const name = document.createElement('span');
+    name.className = 'group-option-name';
+    name.textContent = g.name;
+    opt.appendChild(name);
+
+    const count = document.createElement('span');
+    count.className = 'group-option-count';
+    count.textContent = g.messages.length + ' msgs';
+    opt.appendChild(count);
+
+    if (g.id === '__default') {
+      const tag = document.createElement('span');
+      tag.className = 'group-option-tag';
+      tag.textContent = 'startup';
+      opt.appendChild(tag);
+    }
+
+    opt.onclick = () => {
+      closeGroupDropdown();
+      loadGroup(g.id);
+    };
+    dd.appendChild(opt);
+  });
+
+  // Divider + Create New Group option
+  const divider = document.createElement('div');
+  divider.className = 'group-dropdown-divider';
+  dd.appendChild(divider);
+
+  const createOpt = document.createElement('div');
+  createOpt.className = 'group-option-create';
+  createOpt.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Group';
+  createOpt.onclick = () => {
+    closeGroupDropdown();
+    openGroupModal('create');
+  };
+  dd.appendChild(createOpt);
+}
+
+function updateGroupLabel() {
+  const group = getActiveGroup();
+  document.getElementById('groupSelectedName').textContent = group ? group.name : 'Main';
+  document.getElementById('groupEditBtn').classList.toggle('hidden', !group || group.id === '__default');
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('groupPicker').contains(e.target)) {
+    closeGroupDropdown();
+  }
+});
+
+function loadGroup(id) {
+  const all = getAllGroups();
+  const group = all.find(g => g.id === id);
+  if (!group) return;
+
+  // Before switching, save current messages back to old group if it was Default
+  if (activeGroupId === '__default') {
+    PRESET_GROUPS[0].messages = loopMessages.map(m => ({ text: m.text, duration: m.duration }));
+  }
+
+  if (loopRunning) stopLoop();
+  activeGroupId = id;
+
+  loopMessages = group.messages.map(m => ({ text: m.text, duration: m.duration }));
+  saveLoop();
+  saveGroups();
+  renderLoopList();
+  updateGroupLabel();
+  showToast('Loaded: ' + group.name);
+}
+
+// ─── Group Modal ─────────────────────────────────────────────
+let groupModalMode = null; // 'create' or 'edit'
+
+function openGroupModal(mode) {
+  groupModalMode = mode;
+  const overlay = document.getElementById('groupModal');
+  const input = document.getElementById('groupModalInput');
+  const title = document.getElementById('groupModalTitle');
+  const delBtn = document.getElementById('groupModalDelete');
+
+  if (mode === 'create') {
+    title.textContent = 'New Group';
+    input.value = '';
+    delBtn.style.display = 'none';
+  } else if (mode === 'copy') {
+    const group = getActiveGroup();
+    title.textContent = 'Save Copy';
+    input.value = group ? group.name + ' Copy' : '';
+    delBtn.style.display = 'none';
+  } else {
+    const group = getActiveGroup();
+    title.textContent = 'Edit Group';
+    input.value = group ? group.name : '';
+    delBtn.style.display = 'inline-block';
+  }
+
+  overlay.classList.add('open');
+  setTimeout(() => input.focus(), 100);
+}
+
+function closeGroupModal() {
+  document.getElementById('groupModal').classList.remove('open');
+  groupModalMode = null;
+  deleteConfirmPending = false;
+  const delBtn = document.getElementById('groupModalDelete');
+  delBtn.textContent = 'Delete';
+  delBtn.style.background = '';
+}
+
+function confirmGroupModal() {
+  const name = document.getElementById('groupModalInput').value.trim();
+  if (!name) {
+    showToast('Enter a group name');
+    return;
+  }
+
+  if (groupModalMode === 'create' || groupModalMode === 'copy') {
+    if (loopMessages.length === 0) {
+      showToast('Nothing to save');
+      closeGroupModal();
+      return;
+    }
+    const id = 'grp_' + Date.now();
+    loopGroups.push({
+      id: id,
+      name: name,
+      messages: loopMessages.map(m => ({ text: m.text, duration: m.duration }))
+    });
+    activeGroupId = id;
+    saveGroups();
+    updateGroupLabel();
+    showToast('Created: ' + name);
+  } else {
+    // Edit mode — rename
+    const group = loopGroups.find(g => g.id === activeGroupId);
+    if (group) {
+      group.name = name;
+      saveGroups();
+      updateGroupLabel();
+      showToast('Renamed: ' + name);
+    }
+  }
+
+  closeGroupModal();
+}
+
+function openEditGroup() {
+  const group = getActiveGroup();
+  if (!group || group.id === '__default') return;
+  openGroupModal('edit');
+}
+
+let deleteConfirmPending = false;
+
+function deleteFromModal() {
+  if (activeGroupId === '__default') return;
+  const group = loopGroups.find(g => g.id === activeGroupId);
+  if (!group) {
+    showToast('Cannot delete this group');
+    return;
+  }
+
+  const delBtn = document.getElementById('groupModalDelete');
+  if (!deleteConfirmPending) {
+    // First tap — ask to confirm
+    deleteConfirmPending = true;
+    delBtn.textContent = 'Confirm Delete';
+    delBtn.style.background = 'rgba(248,113,113,0.15)';
+    // Auto-reset after 3 seconds
+    setTimeout(() => {
+      if (deleteConfirmPending) {
+        deleteConfirmPending = false;
+        delBtn.textContent = 'Delete';
+        delBtn.style.background = '';
+      }
+    }, 3000);
+    return;
+  }
+
+  // Second tap — actually delete
+  deleteConfirmPending = false;
+  delBtn.textContent = 'Delete';
+  delBtn.style.background = '';
+
+  loopGroups = loopGroups.filter(g => g.id !== activeGroupId);
+  activeGroupId = '__default';
+  loopMessages = PRESET_GROUPS[0].messages.map(m => ({ text: m.text, duration: m.duration }));
+  saveLoop();
+  saveGroups();
+  renderLoopList();
+  updateGroupLabel();
+  closeGroupModal();
+  showToast('Deleted');
+}
+
+// Enter key in modal input
+document.addEventListener('keydown', (e) => {
+  if (groupModalMode && e.key === 'Enter') confirmGroupModal();
+  if (groupModalMode && e.key === 'Escape') closeGroupModal();
+});
+
+function updateActiveGroup() {
+  if (loopMessages.length === 0) {
+    showToast('Current loop is empty');
+    return;
+  }
+  const group = loopGroups.find(g => g.id === activeGroupId);
+  if (!group) {
+    showToast('Can\'t update presets');
+    return;
+  }
+  group.messages = loopMessages.map(m => ({ text: m.text, duration: m.duration }));
+  saveGroups();
+  showToast('Updated: ' + group.name);
+}
+
+
+
+// On startup, load the active group
+(function initGroups() {
+  if (activeGroupId !== '__default') {
+    const group = getAllGroups().find(g => g.id === activeGroupId);
+    if (group) {
+      loopMessages = group.messages.map(m => ({ text: m.text, duration: m.duration }));
+    } else {
+      activeGroupId = '__default';
+    }
+  }
+  updateGroupLabel();
+})();
+
+// ─── Inline Transition Insert ────────────────────────────────
+let activeInsertPopup = null;
+
+function makeChips(text, max) {
+  const frag = document.createDocumentFragment();
+  const show = text.substring(0, max || 12);
+  for (let i = 0; i < show.length; i++) {
+    const ch = show[i];
+    const chip = document.createElement('span');
+    if (COLOR_MAP[ch]) {
+      chip.className = 'trans-chip';
+      chip.style.background = COLOR_MAP[ch].hex;
+    } else if (ch === ' ') {
+      chip.className = 'trans-chip chip-blank';
+    } else {
+      chip.className = 'trans-chip chip-char';
+      chip.textContent = ch;
+    }
+    frag.appendChild(chip);
+  }
+  return frag;
+}
+
+function showInsertPopup(insertIdx, parentRow) {
+  // Close any open popup
+  closeInsertPopup();
+
+  const popup = document.createElement('div');
+  popup.className = 'insert-trans-popup open';
+  popup.id = 'activeInsertPopup';
+
+  TRANSITIONS.forEach(t => {
+    const opt = document.createElement('div');
+    opt.className = 'insert-trans-option';
+
+    const chips = document.createElement('span');
+    chips.className = 'ito-chips';
+    chips.appendChild(makeChips(t.text, 6));
+    opt.appendChild(chips);
+
+    const lbl = document.createElement('span');
+    lbl.className = 'ito-label';
+    lbl.textContent = t.label;
+    opt.appendChild(lbl);
+
+    opt.onclick = (e) => {
+      e.stopPropagation();
+      insertTransitionAt(insertIdx, t.text, t.label);
+      closeInsertPopup();
+    };
+    popup.appendChild(opt);
+  });
+
+  parentRow.appendChild(popup);
+  activeInsertPopup = popup;
+}
+
+function closeInsertPopup() {
+  if (activeInsertPopup) {
+    activeInsertPopup.remove();
+    activeInsertPopup = null;
+  }
+  const existing = document.getElementById('activeInsertPopup');
+  if (existing) existing.remove();
+}
+
+function insertTransitionAt(idx, text, label) {
+  loopMessages.splice(idx, 0, { text: text.substring(0, NUM_MODULES), duration: 10 });
+  newlyInsertedIdx = idx;
+  saveLoop();
+  renderLoopList();
+  showToast('Added: ' + label);
+}
+
+// Close popup on outside click
+document.addEventListener('click', (e) => {
+  if (activeInsertPopup && !activeInsertPopup.contains(e.target) && !e.target.closest('.loop-insert-btn')) {
+    closeInsertPopup();
+  }
+});
+
+// ─── Board countdown + clear ─────────────────────────────────
+let countdownInterval = null;
+let countdownEnd = 0;
+let boardHasContent = false;
+
+function startCountdown(seconds) {
+  clearInterval(countdownInterval);
+  countdownEnd = Date.now() + seconds * 1000;
+  updateCountdown();
+  countdownInterval = setInterval(updateCountdown, 1000);
+}
+
+function stopCountdown() {
+  clearInterval(countdownInterval);
+  countdownInterval = null;
+  document.getElementById('boardTimer').textContent = '';
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return m > 0 ? m + ':' + String(s).padStart(2, '0') : s + 's';
+}
+
+function updateCountdown() {
+  const remaining = Math.max(0, Math.ceil((countdownEnd - Date.now()) / 1000));
+  const timerEl = document.getElementById('boardTimer');
+  if (remaining <= 0) {
+    timerEl.textContent = '';
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  } else {
+    timerEl.textContent = formatTime(remaining);
+  }
+  // Update the live countdown on the now-playing loop tile
+  if (loopRunning && loopIndex >= 0) {
+    const cdEl = document.getElementById('li-cd-' + loopIndex);
+    if (cdEl) cdEl.textContent = remaining > 0 ? formatTime(remaining) : '';
+  }
+}
+
+function updateTimerVisibility() {
+  const timerEl = document.getElementById('boardTimer');
+  // Show timer only on the tab that controls the current display
+  if (activeTab === 'live' && liveRunning) {
+    timerEl.style.visibility = '';
+  } else if (activeTab === 'loop' && loopRunning) {
+    timerEl.style.visibility = '';
+  } else {
+    timerEl.style.visibility = 'hidden';
+  }
+}
+
+function showClearBtn(show) {
+  boardHasContent = show;
+  updatePlayPauseIcon();
+  updateBoardHint();
+}
+
+function updateBoardHint() {
+  const hint = document.getElementById('boardHint');
+  hint.classList.toggle('hidden', boardHasContent || activeTab !== 'send');
+}
+
+function clearBoard() {
+  sendToDisplay(' '.repeat(NUM_MODULES));
+  stopCountdown();
+  showClearBtn(false);
+
+  document.getElementById('addToLoopBtn').classList.remove('visible');
+  updateDisplayStatus('idle');
+  if (loopRunning) stopLoop();
+}
+
+// ─── Universal Play/Pause ────────────────────────────────────
+function updatePlayPauseIcon() {
+  // Highlight the tab that is currently controlling the display
+  const tabLive = document.getElementById('tabLive');
+  const tabSend = document.getElementById('tabSend');
+  const tabLoop = document.getElementById('tabLoop');
+  tabLive.classList.toggle('controlling', liveRunning);
+  tabSend.classList.toggle('controlling', !liveRunning && !loopRunning && boardHasContent);
+  tabLoop.classList.toggle('controlling', loopRunning);
+}
+
+// ─── Toast ───────────────────────────────────────────────────
+let toastTimer = null;
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('visible'), 2000);
+}
+
+// ─── Schedule System ─────────────────────────────────────────
+let schedule = JSON.parse(localStorage.getItem('splitflap_schedule') || 'null') || {
+  enabled: false,
+  weekdayOpen: '09:00',
+  weekdayClose: '17:55',
+  weekendOpen: '10:00',
+  weekendClose: '16:00',
+  closedMessage: 'CLOSED',
+  openAction: 'live',
+  openGroupId: '__default'
+};
+
+let scheduleState = null; // 'open', 'closed', or null (unknown)
+
+function toggleScheduleEnabled() {
+  schedule.enabled = !schedule.enabled;
+  document.getElementById('schedToggle').classList.toggle('on', schedule.enabled);
+  document.getElementById('schedBody').classList.toggle('disabled', !schedule.enabled);
+  saveSchedule();
+  if (schedule.enabled) {
+    scheduleState = null; // Reset so it evaluates fresh
+    checkSchedule();
+  }
+}
+
+function saveSchedule() {
+  schedule.weekdayOpen = document.getElementById('schedWdOpen').value || '09:00';
+  schedule.weekdayClose = document.getElementById('schedWdClose').value || '17:55';
+  schedule.weekendOpen = document.getElementById('schedWeOpen').value || '10:00';
+  schedule.weekendClose = document.getElementById('schedWeClose').value || '16:00';
+  schedule.closedMessage = document.getElementById('schedCloseMsg').value.trim() || 'CLOSED';
+  schedule.openAction = document.getElementById('schedOpenAction').value || 'live';
+  schedule.openGroupId = document.getElementById('schedOpenGroup').value || '__default';
+  localStorage.setItem('splitflap_schedule', JSON.stringify(schedule));
+}
+
+function loadScheduleUI() {
+  document.getElementById('schedToggle').classList.toggle('on', schedule.enabled);
+  document.getElementById('schedBody').classList.toggle('disabled', !schedule.enabled);
+  document.getElementById('schedWdOpen').value = schedule.weekdayOpen;
+  document.getElementById('schedWdClose').value = schedule.weekdayClose;
+  document.getElementById('schedWeOpen').value = schedule.weekendOpen;
+  document.getElementById('schedWeClose').value = schedule.weekendClose;
+  document.getElementById('schedCloseMsg').value = schedule.closedMessage;
+  document.getElementById('schedOpenAction').value = schedule.openAction || 'live';
+  toggleSchedOpenAction();
+  populateScheduleGroups();
+}
+
+function toggleSchedOpenAction() {
+  const action = document.getElementById('schedOpenAction').value;
+  document.getElementById('schedOpenGroup').style.display = action === 'loop' ? '' : 'none';
+}
+
+function populateScheduleGroups() {
+  const sel = document.getElementById('schedOpenGroup');
+  sel.innerHTML = '';
+  getAllGroups().forEach(g => {
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = g.name;
+    if (g.id === schedule.openGroupId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function timeToMinutes(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function checkSchedule() {
+  if (!schedule.enabled) return;
+
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun, 6=Sat
+  const isWeekend = day === 0 || day === 6;
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+
+  const openTime = timeToMinutes(isWeekend ? schedule.weekendOpen : schedule.weekdayOpen);
+  const closeTime = timeToMinutes(isWeekend ? schedule.weekendClose : schedule.weekdayClose);
+
+  const shouldBeOpen = nowMins >= openTime && nowMins < closeTime;
+
+  if (shouldBeOpen && scheduleState !== 'open') {
+    scheduleState = 'open';
+    if (schedule.openAction === 'live') {
+      // Transition to OPEN — start live mode
+      switchTab('live');
+    } else {
+      // Transition to OPEN — load selected group and start loop
+      const groupId = schedule.openGroupId || '__default';
+      loadGroup(groupId);
+      if (loopMessages.length > 0) {
+        switchTab('loop');
+        startLoop();
+      }
+    }
+  } else if (!shouldBeOpen && scheduleState !== 'closed') {
+    // Transition to CLOSED — stop loop and display closed message
+    scheduleState = 'closed';
+    if (loopRunning) stopLoop();
+    const msg = (schedule.closedMessage || 'CLOSED').toUpperCase().padEnd(NUM_MODULES, ' ').substring(0, NUM_MODULES);
+    sendToDisplay(msg);
+    logHistory(msg.trim(), 'schedule');
+    showClearBtn(true);
+    updateDisplayStatus('send', 'Scheduled');
+  }
+}
+
+// ─── Heartbeat / Connection Monitor ─────────────────────────
+let heartbeatInterval = null;
+let isConnected = null; // null = unknown, true/false
+
+async function heartbeatPing() {
+  if (!espIP) return;
+  try {
+    await fetch('http://' + espIP + '/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'text=' + encodeURIComponent(currentDisplay || ' '.repeat(NUM_MODULES)),
+      mode: 'no-cors',
+      signal: AbortSignal.timeout(5000)
+    });
+    if (isConnected !== true) {
+      isConnected = true;
+      document.getElementById('connBanner').classList.remove('visible');
+      setConnDot('connected');
+    }
+  } catch (e) {
+    if (isConnected !== false) {
+      isConnected = false;
+      document.getElementById('connBanner').classList.add('visible');
+      setConnDot('disconnected');
+    }
+  }
+}
+
+function startHeartbeat() {
+  stopHeartbeat();
+  if (!espIP) return;
+  heartbeatPing(); // Immediate first check
+  heartbeatInterval = setInterval(() => {
+    heartbeatPing();
+    checkSchedule(); // Piggyback schedule check on heartbeat
+  }, 30000);
+}
+
+function stopHeartbeat() {
+  clearInterval(heartbeatInterval);
+  heartbeatInterval = null;
+}
+
+// ─── History ─────────────────────────────────────────────────
+let messageHistory = JSON.parse(localStorage.getItem('splitflap_history') || '[]');
+let historyDateFilter = 'all';
+let historyActionText = null;
+
+function logHistory(text, source) {
+  if (!text || !text.trim()) return;
+  const clean = text.substring(0, NUM_MODULES);
+  // Skip pure color/transition messages (all color chars or spaces)
+  const hasText = [...clean].some(c => c !== ' ' && !COLOR_MAP[c]);
+  if (!hasText) return;
+  // Dedupe: skip if same text+source within last 60s
+  if (messageHistory.length > 0) {
+    const last = messageHistory[0];
+    if (last.text === clean && last.source === source && Date.now() - last.ts < 60000) return;
+  }
+  messageHistory.unshift({
+    text: clean,
+    source: source || 'send',
+    ts: Date.now()
+  });
+  // Cap at 500 entries
+  if (messageHistory.length > 500) messageHistory.length = 500;
+  localStorage.setItem('splitflap_history', JSON.stringify(messageHistory));
+}
+
+function openHistory() {
+  document.getElementById('historyOverlay').classList.add('open');
+  document.getElementById('historyDrawer').classList.add('open');
+  document.getElementById('historySearch').value = '';
+  historyDateFilter = 'all';
+  renderHistoryDateChips();
+  renderHistory();
+}
+
+function closeHistory() {
+  document.getElementById('historyOverlay').classList.remove('open');
+  document.getElementById('historyDrawer').classList.remove('open');
+}
+
+function getHistoryDays() {
+  const days = new Map();
+  messageHistory.forEach(entry => {
+    const d = new Date(entry.ts);
+    const key = d.toISOString().split('T')[0]; // YYYY-MM-DD
+    if (!days.has(key)) days.set(key, d);
+  });
+  return days;
+}
+
+function formatDateChip(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  if (dateStr === todayStr) return 'Today';
+  if (dateStr === yesterdayStr) return 'Yesterday';
+
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[d.getMonth()] + ' ' + d.getDate();
+}
+
+function formatDayLabel(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  if (dateStr === todayStr) return 'Today';
+  if (dateStr === yesterdayStr) return 'Yesterday';
+
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate();
+}
+
+function renderHistoryDateChips() {
+  const row = document.getElementById('historyDateRow');
+  row.innerHTML = '';
+  const days = getHistoryDays();
+
+  if (days.size <= 1) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+
+  // "All" chip
+  const allChip = document.createElement('span');
+  allChip.className = 'history-date-chip' + (historyDateFilter === 'all' ? ' active' : '');
+  allChip.textContent = 'All';
+  allChip.onclick = () => { historyDateFilter = 'all'; renderHistoryDateChips(); renderHistory(); };
+  row.appendChild(allChip);
+
+  days.forEach((_, key) => {
+    const chip = document.createElement('span');
+    chip.className = 'history-date-chip' + (historyDateFilter === key ? ' active' : '');
+    chip.textContent = formatDateChip(key);
+    chip.onclick = () => { historyDateFilter = key; renderHistoryDateChips(); renderHistory(); };
+    row.appendChild(chip);
+  });
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const search = document.getElementById('historySearch').value.toUpperCase().trim();
+  list.innerHTML = '';
+
+  let filtered = messageHistory;
+  if (historyDateFilter !== 'all') {
+    filtered = filtered.filter(e => new Date(e.ts).toISOString().split('T')[0] === historyDateFilter);
+  }
+  if (search) {
+    filtered = filtered.filter(e => e.text.toUpperCase().includes(search));
+  }
+
+  if (filtered.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'history-empty';
+    empty.textContent = messageHistory.length === 0 ? 'No messages yet — send something!' : 'No matches found';
+    list.appendChild(empty);
+    return;
+  }
+
+  // Group by day
+  let currentDay = '';
+  filtered.forEach(entry => {
+    const dayKey = new Date(entry.ts).toISOString().split('T')[0];
+    if (dayKey !== currentDay) {
+      currentDay = dayKey;
+      const label = document.createElement('div');
+      label.className = 'history-day-label';
+      label.textContent = formatDayLabel(dayKey);
+      list.appendChild(label);
+    }
+
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.onclick = () => openHistoryAction(entry.text);
+
+    const preview = document.createElement('div');
+    preview.className = 'history-item-preview';
+    renderPreviewChips(preview, entry.text);
+    item.appendChild(preview);
+
+    const source = document.createElement('span');
+    source.className = 'history-item-source';
+    source.textContent = entry.source;
+    item.appendChild(source);
+
+    const time = document.createElement('span');
+    time.className = 'history-item-time';
+    const d = new Date(entry.ts);
+    const h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    time.textContent = h12 + ':' + m + ' ' + ampm;
+    item.appendChild(time);
+
+    list.appendChild(item);
+  });
+}
+
+function renderPreviewChips(container, text) {
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (COLOR_MAP[ch]) {
+      const chip = document.createElement('span');
+      chip.className = 'li-color-chip';
+      chip.style.background = COLOR_MAP[ch].hex;
+      container.appendChild(chip);
+    } else {
+      container.appendChild(document.createTextNode(ch));
+    }
+  }
+}
+
+function openHistoryAction(text) {
+  historyActionText = text;
+  const preview = document.getElementById('historyActionPreview');
+  preview.innerHTML = '';
+  renderPreviewChips(preview, text);
+  populateHistoryGroupSelect();
+  document.getElementById('historyActionOverlay').classList.add('open');
+  document.getElementById('historyActionPopup').classList.add('open');
+}
+
+function closeHistoryAction() {
+  document.getElementById('historyActionOverlay').classList.remove('open');
+  document.getElementById('historyActionPopup').classList.remove('open');
+  historyActionText = null;
+}
+
+function historyActionSendNow() {
+  if (!historyActionText) return;
+  if (liveRunning) stopLiveMode();
+  if (loopRunning) stopLoop();
+  lastSentText = historyActionText;
+  sendToDisplay(historyActionText, 0); // indefinite — no auto-expire
+  showClearBtn(true);
+  updateDisplayStatus('send', 'Quick Send');
+  logHistory(historyActionText, 'send');
+  closeHistoryAction();
+  closeHistory();
+  switchTab('send');
+  showToast('Sent!');
+}
+
+function populateHistoryGroupSelect() {
+  const sel = document.getElementById('historyGroupSelect');
+  sel.innerHTML = '';
+  getAllGroups().forEach(g => {
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = g.name;
+    // Default to whichever group is currently active
+    if (g.id === activeGroupId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function historyActionAddToGroup() {
+  if (!historyActionText) return;
+  const targetId = document.getElementById('historyGroupSelect').value;
+  const all = getAllGroups();
+  const target = all.find(g => g.id === targetId);
+  if (!target) return;
+
+  if (targetId === '__default') {
+    // Main group — update via PRESET_GROUPS + localStorage
+    const defaultMsgs = JSON.parse(localStorage.getItem('splitflap_loop') || '[]');
+    defaultMsgs.push({ text: historyActionText, duration: 30 });
+    localStorage.setItem('splitflap_loop', JSON.stringify(defaultMsgs));
+    PRESET_GROUPS[0].messages = defaultMsgs;
+    // If currently viewing Main, sync in-memory
+    if (activeGroupId === '__default') {
+      loopMessages = defaultMsgs.map(m => ({ text: m.text, duration: m.duration }));
+      newlyInsertedIdx = loopMessages.length - 1;
+      renderLoopList();
+    }
+  } else {
+    // Other group — update in loopGroups
+    const group = loopGroups.find(g => g.id === targetId);
+    if (group) {
+      group.messages.push({ text: historyActionText, duration: 30 });
+      saveGroups();
+      // If currently viewing this group, sync in-memory
+      if (activeGroupId === targetId) {
+        loopMessages = group.messages.map(m => ({ text: m.text, duration: m.duration }));
+        newlyInsertedIdx = loopMessages.length - 1;
+        renderLoopList();
+      }
+    }
+  }
+
+  const groupName = target.name;
+  closeHistoryAction();
+  closeHistory();
+  switchTab('loop');
+  showToast('Added to ' + groupName + '!');
+}
+
+// ─── Live Mode ──────────────────────────────────────────────
+const LIVE_CYCLE_MS = 60000; // 1 minute per slide
+const LIVE_WHITE_MS = 8000; // all-white hold time
+const LIVE_MULTI_MS = 2000; // multi-color transition display time
+const FOUR_CORNERS_LAT = 45.63;
+const FOUR_CORNERS_LON = -111.19;
+
+let liveRunning = false;
+let liveCycleTimer = null;
+let liveCountdownInterval = null;
+let liveCountdownEnd = 0;
+let liveSlideIndex = 0;
+let liveWeatherData = null;
+let liveWeatherFetchTimer = null;
+
+const LIVE_SLIDES = ['date', 'time', 'weather'];
+let livePausedOn = null; // null = cycling, or slide index if paused on one
+
+const WMO_CODES = {
+  0: 'SUNNY', 1: 'CLEAR', 2: 'CLOUDY', 3: 'OVERCAST',
+  45: 'FOGGY', 48: 'FOGGY',
+  51: 'DRIZZLE', 53: 'DRIZZLE', 55: 'DRIZZLE',
+  56: 'FREEZING', 57: 'FREEZING',
+  61: 'RAINY', 63: 'RAINY', 65: 'RAINY',
+  66: 'FREEZING', 67: 'FREEZING',
+  71: 'SNOWY', 73: 'SNOWY', 75: 'SNOWY',
+  77: 'SNOWY',
+  80: 'SHOWERS', 81: 'SHOWERS', 82: 'SHOWERS',
+  85: 'SNOWY', 86: 'SNOWY',
+  95: 'STORMY', 96: 'STORMY', 99: 'STORMY'
+};
+
+function getLiveDateText() {
+  const now = new Date();
+  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const day = days[now.getDay()];
+  const mon = months[now.getMonth()];
+  const date = now.getDate();
+  // Format: "MON MAR 30" → pad to center in 12
+  const str = day + ' ' + mon + ' ' + date;
+  return str.padStart(Math.floor((12 + str.length) / 2)).padEnd(12);
+}
+
+function getLiveTimeText() {
+  const now = new Date();
+  let h = now.getHours();
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  // Format: "3 45 PM" → center in 12
+  const str = h + ' ' + m + ' ' + ampm;
+  return str.padStart(Math.floor((12 + str.length) / 2)).padEnd(12);
+}
+
+function getLiveWeatherText() {
+  if (!liveWeatherData) return '  LOADING   ';
+  const temp = Math.round(liveWeatherData.temp);
+  const cond = WMO_CODES[liveWeatherData.code] || 'WEATHER';
+  // Format: "45F SUNNY" → center in 12
+  const str = temp + 'F ' + cond;
+  return str.padStart(Math.floor((12 + str.length) / 2)).padEnd(12).substring(0, 12);
+}
+
+function updateLiveSlideValues() {
+  const now = new Date();
+  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const h = now.getHours() % 12 || 12;
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+
+  document.getElementById('liveDateValue').textContent =
+    days[now.getDay()] + ' ' + months[now.getMonth()] + ' ' + now.getDate();
+  document.getElementById('liveTimeValue').textContent =
+    h + ':' + m + ' ' + ampm;
+
+  if (liveWeatherData) {
+    const temp = Math.round(liveWeatherData.temp);
+    const hi = Math.round(liveWeatherData.high);
+    const lo = Math.round(liveWeatherData.low);
+    const cond = WMO_CODES[liveWeatherData.code] || 'Unknown';
+    document.getElementById('liveWeatherValue').textContent = temp + '°F ' + cond;
+    document.getElementById('liveWeatherDetail').textContent = 'High ' + hi + '° / Low ' + lo + '°';
+  }
+}
+
+// Color transition patterns — each is 12 chars of mixed color codes
+const LIVE_TRANSITIONS = [
+  '{}{~|\\{~}|\\{',   // green red green yellow purple white...
+  '~|\\{}~|\\{}~|',   // yellow purple white red green...
+  '}~{|\\}~{|\\}~',   // red yellow green purple white...
+];
+let liveTransitionIdx = 0;
+
+function startLiveCountdown() {
+  stopLiveCountdown();
+  liveCountdownEnd = Date.now() + LIVE_CYCLE_MS;
+  updateLiveCountdown();
+  liveCountdownInterval = setInterval(updateLiveCountdown, 1000);
+}
+
+function stopLiveCountdown() {
+  clearInterval(liveCountdownInterval);
+  liveCountdownInterval = null;
+  document.getElementById('boardTimer').textContent = '';
+}
+
+function updateLiveCountdown() {
+  const remaining = Math.max(0, Math.ceil((liveCountdownEnd - Date.now()) / 1000));
+  const timerEl = document.getElementById('boardTimer');
+  if (remaining <= 0) {
+    timerEl.textContent = '';
+    clearInterval(liveCountdownInterval);
+    liveCountdownInterval = null;
+  } else {
+    timerEl.textContent = formatTime(remaining) + ' / ' + formatTime(LIVE_CYCLE_MS / 1000);
+  }
+}
+
+function showLiveSlide(index, skipTransition) {
+  liveSlideIndex = index % LIVE_SLIDES.length;
+  const type = LIVE_SLIDES[liveSlideIndex];
+
+  let text;
+  if (type === 'date') text = getLiveDateText();
+  else if (type === 'time') text = getLiveTimeText();
+  else text = getLiveWeatherText();
+
+  if (skipTransition) {
+    sendToDisplay(text);
+    startLiveCountdown();
+  } else {
+    // Step 1: all white flaps
+    sendToDisplay('\\\\\\\\\\\\\\\\\\\\\\\\');
+    stopLiveCountdown();
+    // Step 2: hold white for 8 seconds
+    setTimeout(() => {
+      if (!liveRunning) return;
+      // Step 3: multi-color transition
+      const trans = LIVE_TRANSITIONS[liveTransitionIdx % LIVE_TRANSITIONS.length];
+      liveTransitionIdx++;
+      sendToDisplay(trans);
+      // Step 4: show the actual content
+      setTimeout(() => {
+        if (!liveRunning) return;
+        sendToDisplay(text);
+        startLiveCountdown();
+      }, LIVE_MULTI_MS);
+    }, LIVE_WHITE_MS);
+  }
+
+  showClearBtn(false);
+  updateDisplayStatus('send', 'Live');
+
+  // Highlight active slide in panel
+  document.querySelectorAll('.live-slide').forEach((el, i) => {
+    el.classList.toggle('active', i === liveSlideIndex);
+  });
+
+  updateLiveSlideValues();
+}
+
+function advanceLiveSlide() {
+  if (livePausedOn !== null) return; // paused, don't advance
+  liveSlideIndex = (liveSlideIndex + 1) % LIVE_SLIDES.length;
+  showLiveSlide(liveSlideIndex);
+}
+
+function jumpLiveSlide(idx) {
+  if (!liveRunning) return;
+  if (idx === liveSlideIndex && livePausedOn === null) {
+    // Tapping the already-active slide while cycling — do nothing
+    return;
+  }
+  // Jump to this slide and resume cycling
+  livePausedOn = null;
+  clearInterval(liveCycleTimer);
+  showLiveSlide(idx, true);
+  liveCycleTimer = setInterval(advanceLiveSlide, LIVE_CYCLE_MS);
+  updateLiveStatus();
+}
+
+function updateLiveStatus() {
+  // Status now reflected by the Start/Stop button state
+}
+
+function toggleLiveMode() {
+  if (liveRunning) stopLiveMode();
+  else startLiveMode();
+}
+
+function startLiveMode() {
+  if (liveRunning) return;
+  liveRunning = true;
+  if (loopRunning) stopLoop();
+  livePausedOn = null;
+  liveSlideIndex = 0;
+  showLiveSlide(0, true);
+  liveCycleTimer = setInterval(advanceLiveSlide, LIVE_CYCLE_MS);
+  fetchWeather();
+  liveWeatherFetchTimer = setInterval(fetchWeather, 900000);
+  updateLiveStatus();
+  updateLiveBtn();
+  updatePlayPauseIcon();
+}
+
+function stopLiveMode() {
+  if (!liveRunning) return;
+  liveRunning = false;
+  livePausedOn = null;
+  clearInterval(liveCycleTimer);
+  clearInterval(liveWeatherFetchTimer);
+  liveCycleTimer = null;
+  liveWeatherFetchTimer = null;
+  stopLiveCountdown();
+  updateLiveBtn();
+  updateLiveStatus();
+  updatePlayPauseIcon();
+}
+
+function updateLiveBtn() {
+  const btn = document.getElementById('liveStartBtn');
+  if (liveRunning) {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg> Stop Live Data';
+    btn.classList.add('running');
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> Start Live Data';
+    btn.classList.remove('running');
+  }
+}
+
+async function fetchWeather() {
+  try {
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + FOUR_CORNERS_LAT
+      + '&longitude=' + FOUR_CORNERS_LON
+      + '&current=temperature_2m,weather_code'
+      + '&daily=temperature_2m_max,temperature_2m_min'
+      + '&temperature_unit=fahrenheit'
+      + '&timezone=America%2FDenver'
+      + '&forecast_days=1';
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    const data = await res.json();
+    liveWeatherData = {
+      temp: data.current.temperature_2m,
+      code: data.current.weather_code,
+      high: data.daily.temperature_2m_max[0],
+      low: data.daily.temperature_2m_min[0]
+    };
+    updateLiveSlideValues();
+    // If currently showing weather slide, refresh display
+    if (liveRunning && LIVE_SLIDES[liveSlideIndex] === 'weather') {
+      sendToDisplay(getLiveWeatherText());
+    }
+  } catch (e) {
+    document.getElementById('liveWeatherValue').textContent = 'Unavailable';
+    document.getElementById('liveWeatherDetail').textContent = 'Check internet connection';
+  }
+}
+
+// ─── Init ────────────────────────────────────────────────────
+initBoard();
+renderVisualInput('send');
+renderVisualInput('loop');
+renderLoopList();
+updateLoopUI();
+
+loadScheduleUI();
+if (espIP) startHeartbeat();
+// Schedule check runs every 30s regardless of heartbeat
+setInterval(checkSchedule, 30000);
+if (schedule.enabled) { scheduleState = null; checkSchedule(); }
+
+// Auto-start live mode on load
+startLiveMode();
+</script>
+
+</body>
+</html>

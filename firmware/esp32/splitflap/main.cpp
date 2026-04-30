@@ -46,8 +46,8 @@ MQTTTask mqttTask(splitflapTask, displayTask, serialTask, 0);
 #endif
 
 #if HTTP
-#include "http_task.h"
-HTTPTask httpTask(splitflapTask, displayTask, serialTask, 0);
+#include "webserver_task.h"
+WebServerTask httpTask(splitflapTask, displayTask, serialTask, 0);
 #endif
 
 void setup() {
