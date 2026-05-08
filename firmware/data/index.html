@@ -2479,8 +2479,13 @@ function renderVisualInput(which) {
     const hasContent = buf.length > 0 && buf.some(c => c !== ' ');
     document.getElementById('sendBtn').disabled = !hasContent;
 
-    // Note: board updates only happen on SEND (via sendMessage → sendToDisplay).
-    // Typing doesn't preview to the board — keeps Live/Loop running until you commit.
+    // ─── Live preview: board reflects the typing buffer in real time ───
+    // Same pattern as Live (board shows current slide) and Loop (board shows current loop item).
+    // updateBoard is local-only — no fetch to ESP32 until SEND is pressed.
+    // Quick Send takes priority — pause Live/Loop while previewing on the board.
+    if (liveRunning) stopLiveMode();
+    if (loopRunning) stopLoop();
+    updateBoard(buf.join(''));
   } else {
     document.getElementById('loopCharCount').textContent = buf.length;
     const hasContent = buf.length > 0 && buf.some(c => c !== ' ');
