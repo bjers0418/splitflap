@@ -2480,10 +2480,10 @@ function renderVisualInput(which) {
     document.getElementById('sendBtn').disabled = !hasContent;
 
     // ─── Live preview on the splitflap board while typing in Quick Send ───
-    // (Only when nothing is actively running on the board — don't fight Live/Loop animations.)
-    if (!liveRunning && !loopRunning) {
-      updateBoard(buf.join(''));
-    }
+    // Quick Send takes priority — pause Live/Loop and take over the board.
+    if (liveRunning) stopLiveMode();
+    if (loopRunning) stopLoop();
+    updateBoard(buf.join(''));
   } else {
     document.getElementById('loopCharCount').textContent = buf.length;
     const hasContent = buf.length > 0 && buf.some(c => c !== ' ');
