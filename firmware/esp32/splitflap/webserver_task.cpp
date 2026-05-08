@@ -268,6 +268,43 @@ void WebServerTask::handleCalibrate() {
         ",\"action\":\"" + action + "\"}");
 }
 
+void WebServerTask::handleHome() {
+    server_.sendHeader("Access-Control-Allow-Origin", "*");
+    server_.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    server_.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (server_.method() == HTTP_OPTIONS) {
+        server_.send(204);
+        return;
+    }
+
+    if (server_.hasArg("module")) {
+        int module_id = server_.arg("module").toInt();
+        if (module_id < 0 || module_id >= NUM_MODULES) {
+            server_.send(400, "application/json",
+                "{\"error\":\"invalid module (0.." + String(NUM_MODULES - 1) + ")\"}");
+            return;
+        }
+        // Per-module re-home: send a MODULES command with QCMD_RESET_AND_HOME
+        // for the targeted module only. Other modules continue what they're doing.
+        Command c = {};
+        c.command_type = CommandType::MODULES;
+        c.data.module_command[module_id] = QCMD_RESET_AND_HOME;
+        splitflap_task_.postRawCommand(c);
+        char log_buf[64];
+        snprintf(log_buf, sizeof(log_buf), "home: module %d re-homed", module_id);
+        logger_.log(log_buf);
+        server_.send(200, "application/json",
+            "{\"status\":\"ok\",\"module\":" + String(module_id) + "}");
+    } else {
+        // No module specified: re-home everything.
+        splitflap_task_.resetAll();
+        logger_.log("home: all modules re-homed");
+        server_.send(200, "application/json",
+            "{\"status\":\"ok\",\"all\":true}");
+    }
+}
+
 void WebServerTask::handleNotFound() {
     server_.sendHeader("Access-Control-Allow-Origin", "*");
 
@@ -321,6 +358,13 @@ void WebServerTask::setupRoutes() {
     // Calibration endpoint — adjusts a module's flap-vs-magnet offset.
     server_.on("/calibrate", HTTP_POST,    [this]() { handleCalibrate(); });
     server_.on("/calibrate", HTTP_OPTIONS, [this]() { handleCalibrate(); });
+
+    // Home endpoint — forces motor to find magnet & re-sync. Useful after a
+    // manual drum nudge or mechanical work, where the firmware's idea of
+    // position is stale. POST /home re-homes all modules; POST /home?module=N
+    // re-homes just that one.
+    server_.on("/home", HTTP_POST,    [this]() { handleHome(); });
+    server_.on("/home", HTTP_OPTIONS, [this]() { handleHome(); });
 
     server_.on("/message", HTTP_GET, [this]() {
         server_.sendHeader("Access-Control-Allow-Origin", "*");
