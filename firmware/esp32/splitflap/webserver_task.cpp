@@ -226,6 +226,22 @@ void WebServerTask::showOnDisplay(const String& text) {
         memset(display_buf + len, ' ', NUM_MODULES - len);
     }
     display_buf[NUM_MODULES] = '\0';
+
+    // Translate ReedBoard app color tokens → firmware flap chars (see config.h flaps[]).
+    // App tokens are non-letter, non-digit characters; they only collide with the firmware
+    // by intent. The uppercase pass already happened in handleMessage, so a literal 'g'
+    // typed by the user is now 'G' (the alphabet flap), distinct from the lowercase
+    // color-flap chars below.
+    for (size_t i = 0; i < NUM_MODULES; i++) {
+        switch (display_buf[i]) {
+            case '{':  display_buf[i] = 'g'; break;  // green
+            case '}':  display_buf[i] = 'r'; break;  // red
+            case '~':  display_buf[i] = 'y'; break;  // yellow
+            case '|':  display_buf[i] = 'p'; break;  // purple
+            case '\\': display_buf[i] = 'w'; break;  // white
+        }
+    }
+
     splitflap_task_.showString(display_buf, NUM_MODULES, false);
 }
 
