@@ -2479,11 +2479,8 @@ function renderVisualInput(which) {
     const hasContent = buf.length > 0 && buf.some(c => c !== ' ');
     document.getElementById('sendBtn').disabled = !hasContent;
 
-    // ─── Live preview on the splitflap board while typing in Quick Send ───
-    // Quick Send takes priority — pause Live/Loop and take over the board.
-    if (liveRunning) stopLiveMode();
-    if (loopRunning) stopLoop();
-    updateBoard(buf.join(''));
+    // Note: board updates only happen on SEND (via sendMessage → sendToDisplay).
+    // Typing doesn't preview to the board — keeps Live/Loop running until you commit.
   } else {
     document.getElementById('loopCharCount').textContent = buf.length;
     const hasContent = buf.length > 0 && buf.some(c => c !== ' ');
@@ -2613,6 +2610,7 @@ function sendMessage() {
   buffer = [];
   cursor = 0;
   hiddenInput.value = '';
+  hiddenInput.blur(); // dismiss on-screen keyboard on mobile and release focus on desktop
   renderVisualInput('send');
   showToast('Sent!');
   logHistory(lastSentText, 'send');
