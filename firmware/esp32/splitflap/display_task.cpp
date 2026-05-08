@@ -143,8 +143,8 @@ void DisplayTask::run() {
             last_state = state;
         }
 
-        const int message_height = 10;
-        const int message_text_size = 1;
+        const int message_height = 20;     // was 10 — bigger lines = readable from across the bench
+        const int message_text_size = 2;   // was 1 — 12x16 px chars; two lines × 20 px = 40 px bottom band
         bool redraw_messages = false;
         {
             SemaphoreGuard lock(semaphore_);
