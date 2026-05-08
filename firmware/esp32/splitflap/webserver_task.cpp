@@ -214,6 +214,60 @@ void WebServerTask::handleMessage() {
         "{\"status\":\"ok\",\"displayed\":\"" + text + "\"}");
 }
 
+void WebServerTask::handleCalibrate() {
+    server_.sendHeader("Access-Control-Allow-Origin", "*");
+    server_.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    server_.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (server_.method() == HTTP_OPTIONS) {
+        server_.send(204);
+        return;
+    }
+
+    int module_id = server_.hasArg("module") ? server_.arg("module").toInt() : 0;
+    if (module_id < 0 || module_id >= NUM_MODULES) {
+        server_.send(400, "application/json",
+            "{\"error\":\"invalid module (0.." + String(NUM_MODULES - 1) + ")\"}");
+        return;
+    }
+
+    String action = server_.hasArg("action") ? server_.arg("action") : "";
+    int flaps = server_.hasArg("flaps") ? server_.arg("flaps").toInt() : 1;
+
+    char log_buf[80];
+    if (action == "tenth") {
+        // Fine adjustment — ~1/10 of a flap (~8 motor steps).
+        splitflap_task_.increaseOffsetTenth((uint8_t)module_id);
+        snprintf(log_buf, sizeof(log_buf), "calibrate: module %d +1/10 flap", module_id);
+    } else if (action == "half") {
+        // Coarse adjustment — half a flap. Two calls = one full flap forward.
+        splitflap_task_.increaseOffsetHalf((uint8_t)module_id);
+        snprintf(log_buf, sizeof(log_buf), "calibrate: module %d +1/2 flap", module_id);
+    } else if (action == "advance") {
+        // Convenience: advance by N full flaps (= 2 × half-flap calls per flap).
+        if (flaps < 1)  flaps = 1;
+        if (flaps > 51) flaps = 51;
+        for (int i = 0; i < flaps * 2; i++) {
+            splitflap_task_.increaseOffsetHalf((uint8_t)module_id);
+        }
+        snprintf(log_buf, sizeof(log_buf), "calibrate: module %d advanced %d flaps",
+                 module_id, flaps);
+    } else if (action == "save") {
+        // Persists every module's offset to flash. Survives reboot.
+        splitflap_task_.saveAllOffsets();
+        snprintf(log_buf, sizeof(log_buf), "calibrate: SAVED all offsets to flash");
+    } else {
+        server_.send(400, "application/json",
+            "{\"error\":\"unknown action; expected tenth|half|advance|save\"}");
+        return;
+    }
+
+    logger_.log(log_buf);
+    server_.send(200, "application/json",
+        "{\"status\":\"ok\",\"module\":" + String(module_id) +
+        ",\"action\":\"" + action + "\"}");
+}
+
 void WebServerTask::handleNotFound() {
     server_.sendHeader("Access-Control-Allow-Origin", "*");
 
@@ -264,6 +318,10 @@ void WebServerTask::setupRoutes() {
 
     server_.on("/message", HTTP_POST, [this]() { handleMessage(); });
     server_.on("/message", HTTP_OPTIONS, [this]() { handleMessage(); });
+    // Calibration endpoint — adjusts a module's flap-vs-magnet offset.
+    server_.on("/calibrate", HTTP_POST,    [this]() { handleCalibrate(); });
+    server_.on("/calibrate", HTTP_OPTIONS, [this]() { handleCalibrate(); });
+
     server_.on("/message", HTTP_GET, [this]() {
         server_.sendHeader("Access-Control-Allow-Origin", "*");
         server_.send(200, "text/plain",

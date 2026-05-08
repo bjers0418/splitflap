@@ -44,6 +44,7 @@ class WebServerTask : public Task<WebServerTask> {
         void handleIndex();
         void handleMessage();
         void handleStatus();
+        void handleCalibrate();
         void handleNotFound();
         void showOnDisplay(const String& text);
 
