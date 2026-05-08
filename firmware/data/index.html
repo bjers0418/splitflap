@@ -2253,7 +2253,19 @@ function setConnDot(state, label) {
 function updateDisplayStatus(mode, detail) {}
 
 // Init connection
-let espIP = localStorage.getItem('splitflap_ip') || '';
+// Auto-detect: if the app is loaded directly from the ESP32 (e.g. http://reedboard.local/
+// or http://192.168.4.92/), default espIP to that host. Otherwise fall back to localStorage
+// (used when the HTML is opened from a phone-saved copy or a different host).
+let espIP = (function () {
+  const stored = localStorage.getItem('splitflap_ip') || '';
+  const host = window.location.host;
+  // Only auto-fill when there's no stored value and we're on a real host (not file:// or localhost).
+  if (!stored && host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1') && location.protocol.startsWith('http')) {
+    localStorage.setItem('splitflap_ip', host);
+    return host;
+  }
+  return stored;
+})();
 (function() {
   if (espIP) {
     setConnDot('connected', 'Connected: ' + espIP);
