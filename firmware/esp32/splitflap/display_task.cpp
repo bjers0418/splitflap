@@ -92,23 +92,25 @@ void DisplayTask::run() {
                             foreground = 0x6b4d;
                         }
 
-                        // You can add special-case color handling here if desired:
-                        // if (c == 'w') {
-                        //     c = ' ';
-                        //     background = 0xFFFF;
-                        // } else if (c == 'y') {
-                        //     c = ' ';
-                        //     background = 0xffe0;
-                        // } else if (c == 'o') {
-                        //     c = ' ';
-                        //     background = 0xfd00;
-                        // } else if (c == 'g') {
-                        //     c = ' ';
-                        //     background = 0x46a0;
-                        // } else if (c == 'p') {
-                        //     c = ' ';
-                        //     background = 0xd938;
-                        // }
+                        // Color flaps render as filled colored squares (no letter) on the LCD
+                        // status grid, instead of the literal lowercase 'g'/'r'/'y'/'p'/'w' chars.
+                        // RGB565 colors picked to roughly match the physical Bezek Labs flap colors.
+                        if (c == 'g') {        // green
+                            c = ' ';
+                            background = 0x46a0;
+                        } else if (c == 'r') { // red
+                            c = ' ';
+                            background = 0xC000;
+                        } else if (c == 'y') { // yellow
+                            c = ' ';
+                            background = 0xffe0;
+                        } else if (c == 'p') { // purple
+                            c = ' ';
+                            background = 0xd938;
+                        } else if (c == 'w') { // white
+                            c = ' ';
+                            background = 0xFFFF;
+                        }
                         break;
                     case PANIC:
                         c = '~';
