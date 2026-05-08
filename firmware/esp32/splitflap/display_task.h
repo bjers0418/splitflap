@@ -40,4 +40,12 @@ class DisplayTask : public Task<DisplayTask> {
         TFT_eSPI tft_ = TFT_eSPI();
 
         String messages_[2] = {};
+
+        // ReedBoard mod: top status bar (time, WiFi, shop OPEN/CLOSED).
+        // Tracked separately from messages_ because they update on a 1Hz tick
+        // independent of the message-change redraw path.
+        unsigned long last_status_redraw_ms_ = 0;
+        int last_drawn_minute_ = -1;
+        int last_drawn_rssi_bracket_ = -99;
+        int last_drawn_open_status_ = -1;  // -1 unset, 0 closed, 1 open
 };

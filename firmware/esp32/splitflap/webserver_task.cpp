@@ -50,6 +50,14 @@ void WebServerTask::connectWifi() {
 
     snprintf(buf, sizeof(buf), "http://%s", WiFi.localIP().toString().c_str());
     display_task_.setMessage(1, String(buf));
+
+    // ReedBoard mod: NTP sync for the LCD status bar clock.
+    // POSIX TZ string for US Mountain Time, including DST rules:
+    //   MST7MDT  → MST is base (UTC-7), MDT is daylight (UTC-6)
+    //   M3.2.0   → DST starts: 2nd Sunday in March
+    //   M11.1.0  → DST ends: 1st Sunday in November
+    configTzTime("MST7MDT,M3.2.0,M11.1.0", "pool.ntp.org", "time.nist.gov");
+    logger_.log("NTP sync started (Mountain Time)");
 }
 
 // ─── SPIFFS (UI filesystem) ────────────────────────────────────

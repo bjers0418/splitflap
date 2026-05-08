@@ -15,10 +15,18 @@
 */
 #include "display_task.h"
 
+#include <WiFi.h>
+#include <time.h>
+
 #include "../core/common.h"
 #include "../core/semaphore_guard.h"
 
 #include "display_layouts.h"
+
+// ReedBoard mod: shop hours (must match SHOP_HOURS in reedboard-app.html).
+// Mon–Fri 9–18, Sat 9–16, Sun closed.
+static const int8_t SHOP_OPEN[7]  = { -1,  9,  9,  9,  9,  9,  9 }; // -1 = closed all day
+static const int8_t SHOP_CLOSE[7] = { -1, 18, 18, 18, 18, 18, 16 }; // [0]=Sun, [6]=Sat per tm_wday
 
 DisplayTask::DisplayTask(SplitflapTask& splitflap_task, const uint8_t task_core) : Task("Display", 6000, 1, task_core), splitflap_task_(splitflap_task), semaphore_(xSemaphoreCreateMutex()) {
     assert(semaphore_ != NULL);
@@ -33,7 +41,7 @@ DisplayTask::~DisplayTask() {
 
 
 static const int32_t X_OFFSET = 10;
-static const int32_t Y_OFFSET = 10;
+static const int32_t Y_OFFSET = 28;  // ReedBoard mod: shifted from 10 to make room for top status bar
 
 void DisplayTask::run() {
     tft_.begin();
@@ -143,6 +151,81 @@ void DisplayTask::run() {
                 tft_.printf("%c", c);
             }
             last_state = state;
+        }
+
+        // ReedBoard top status bar: redraw at most once per second.
+        unsigned long now_ms = millis();
+        if (now_ms - last_status_redraw_ms_ >= 1000) {
+            last_status_redraw_ms_ = now_ms;
+
+            struct tm timeinfo;
+            bool have_time = getLocalTime(&timeinfo, 0);
+
+            // What changed this tick?
+            int minute_now = have_time ? (timeinfo.tm_hour * 60 + timeinfo.tm_min) : -1;
+            int rssi = WiFi.RSSI();
+            int rssi_bracket;
+            if      (rssi >= -55) rssi_bracket = 3; // strong  → green
+            else if (rssi >= -70) rssi_bracket = 2; // medium  → yellow
+            else if (rssi >= -90) rssi_bracket = 1; // weak    → red
+            else                  rssi_bracket = 0; // none    → grey
+            int open_now = -1;
+            if (have_time) {
+                int wday = timeinfo.tm_wday; // 0=Sun..6=Sat
+                int8_t oh = SHOP_OPEN[wday], ch = SHOP_CLOSE[wday];
+                if (oh < 0) {
+                    open_now = 0;
+                } else {
+                    int curMin = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+                    open_now = (curMin >= oh * 60 && curMin < ch * 60) ? 1 : 0;
+                }
+            }
+
+            bool minute_changed = (minute_now != last_drawn_minute_);
+            bool rssi_changed   = (rssi_bracket != last_drawn_rssi_bracket_);
+            bool open_changed   = (open_now != last_drawn_open_status_);
+
+            if (minute_changed || rssi_changed || open_changed) {
+                // Repaint the whole status bar to keep alignment simple.
+                tft_.fillRect(0, 0, tft_.width(), 24, TFT_BLACK);
+                tft_.setTextSize(2);
+
+                // Time on left
+                tft_.setTextColor(TFT_WHITE, TFT_BLACK);
+                if (have_time) {
+                    int h12 = timeinfo.tm_hour % 12; if (h12 == 0) h12 = 12;
+                    const char* ampm = (timeinfo.tm_hour >= 12) ? "PM" : "AM";
+                    char tbuf[16];
+                    snprintf(tbuf, sizeof(tbuf), "%d:%02d %s", h12, timeinfo.tm_min, ampm);
+                    tft_.drawString(tbuf, 2, 4);
+                } else {
+                    tft_.drawString("--:-- --", 2, 4);
+                }
+
+                // WiFi RSSI dot in center (color-coded)
+                uint16_t dot_color;
+                switch (rssi_bracket) {
+                    case 3: dot_color = TFT_GREEN;  break;
+                    case 2: dot_color = TFT_YELLOW; break;
+                    case 1: dot_color = TFT_RED;    break;
+                    default: dot_color = 0x4208;    break; // dim grey when no signal
+                }
+                tft_.fillCircle(tft_.width() / 2, 12, 5, dot_color);
+
+                // OPEN / CLSD on right
+                const char* status_str = (open_now == 1) ? "OPEN" : (open_now == 0) ? "CLSD" : "----";
+                uint16_t status_color = (open_now == 1) ? TFT_GREEN : (open_now == 0) ? TFT_RED : TFT_WHITE;
+                tft_.setTextColor(status_color, TFT_BLACK);
+                int sw = strlen(status_str) * 12;
+                tft_.drawString(status_str, tft_.width() - sw - 2, 4);
+
+                // Thin divider under the status bar
+                tft_.drawFastHLine(0, 25, tft_.width(), 0x2104);
+
+                last_drawn_minute_       = minute_now;
+                last_drawn_rssi_bracket_ = rssi_bracket;
+                last_drawn_open_status_  = open_now;
+            }
         }
 
         const int message_height = 20;     // was 10 — bigger lines = readable from across the bench
