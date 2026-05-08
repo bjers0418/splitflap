@@ -2288,10 +2288,8 @@ function switchTab(tab) {
   document.querySelector('.board-area').classList.toggle('send-mode', tab === 'send');
 
   if (tab === 'send') {
-    // Focus the input so the keyboard appears + cursor is ready,
-    // and explicitly render so the board reflects the typing buffer
-    // (focus event alone isn't reliable when input was already focused).
-    document.getElementById('hiddenInput').focus();
+    // Render so the board reflects the typing buffer (matches Live/Loop pattern).
+    // Don't auto-focus the input — keyboard pops up only when the user taps the typing area.
     renderVisualInput('send');
   }
   updateBoardHint();
