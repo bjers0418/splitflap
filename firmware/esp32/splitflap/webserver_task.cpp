@@ -52,23 +52,23 @@ void WebServerTask::connectWifi() {
     display_task_.setMessage(1, String(buf));
 }
 
-// ─── FFat (UI filesystem) ────────────────────────────────────
-void WebServerTask::setupFFat() {
-    // begin(formatOnFail=true) — first boot will format if FFat is empty.
-    if (!FFat.begin(true)) {
-        logger_.log("FFat mount failed even after format — UI hosting disabled");
-        ffat_mounted_ = false;
+// ─── SPIFFS (UI filesystem) ────────────────────────────────────
+void WebServerTask::setupFS() {
+    // begin(formatOnFail=true) — first boot will format if SPIFFS is empty.
+    if (!SPIFFS.begin(true)) {
+        logger_.log("SPIFFS mount failed even after format — UI hosting disabled");
+        fs_mounted_ = false;
         return;
     }
-    ffat_mounted_ = true;
+    fs_mounted_ = true;
 
     char buf[128];
-    snprintf(buf, sizeof(buf), "FFat mounted: %u / %u bytes used",
-             (unsigned)FFat.usedBytes(), (unsigned)FFat.totalBytes());
+    snprintf(buf, sizeof(buf), "SPIFFS mounted: %u / %u bytes used",
+             (unsigned)SPIFFS.usedBytes(), (unsigned)SPIFFS.totalBytes());
     logger_.log(buf);
 
-    if (!FFat.exists("/index.html")) {
-        logger_.log("WARN: /index.html not present on FFat — run PlatformIO 'Upload Filesystem Image'");
+    if (!SPIFFS.exists("/index.html")) {
+        logger_.log("WARN: /index.html not present on SPIFFS — run PlatformIO 'Upload Filesystem Image'");
     }
 }
 
@@ -101,7 +101,7 @@ void WebServerTask::setupOTA() {
             logger_.log(buf);
             // If updating filesystem, unmount first so writes succeed.
             if (ArduinoOTA.getCommand() == U_SPIFFS) {
-                FFat.end();
+                SPIFFS.end();
             }
             display_task_.setMessage(0, "OTA: " + type);
         })
@@ -136,14 +136,14 @@ void WebServerTask::setupOTA() {
 void WebServerTask::handleIndex() {
     server_.sendHeader("Access-Control-Allow-Origin", "*");
 
-    if (!ffat_mounted_ || !FFat.exists("/index.html")) {
+    if (!fs_mounted_ || !SPIFFS.exists("/index.html")) {
         // Friendly fallback so a fresh device isn't a black hole.
         String body =
             "<!doctype html><html><body style='font-family:sans-serif;padding:24px'>"
             "<h2>ReedBoard firmware running, UI not yet uploaded.</h2>"
             "<p>Run <code>pio run -t uploadfs</code> (USB) or "
             "<code>pio run -e chainlink_ota -t uploadfs</code> (WiFi) "
-            "to push <code>index.html</code> to FFat.</p>"
+            "to push <code>index.html</code> to SPIFFS.</p>"
             "<p>API endpoints are live: "
             "<code>GET /status</code>, <code>POST /message</code>.</p>"
             "</body></html>";
@@ -151,7 +151,7 @@ void WebServerTask::handleIndex() {
         return;
     }
 
-    File f = FFat.open("/index.html", "r");
+    File f = SPIFFS.open("/index.html", "r");
     if (!f) {
         server_.send(500, "text/plain", "Failed to open /index.html");
         return;
@@ -254,7 +254,7 @@ void WebServerTask::setupRoutes() {
 // ─── Main Run Loop ───────────────────────────────────────────
 void WebServerTask::run() {
     connectWifi();
-    setupFFat();
+    setupFS();
     setupMDNS();
     setupOTA();
     setupRoutes();

@@ -16,7 +16,7 @@
 #include <Arduino.h>
 #include <WebServer.h>
 #include <WiFi.h>
-#include <FFat.h>
+#include <SPIFFS.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
 
@@ -37,7 +37,7 @@ class WebServerTask : public Task<WebServerTask> {
 
     private:
         void connectWifi();
-        void setupFFat();
+        void setupFS();
         void setupMDNS();
         void setupOTA();
         void setupRoutes();
@@ -51,5 +51,5 @@ class WebServerTask : public Task<WebServerTask> {
         DisplayTask& display_task_;
         Logger& logger_;
         WebServer server_;
-        bool ffat_mounted_ = false;
+        bool fs_mounted_ = false;
 };
