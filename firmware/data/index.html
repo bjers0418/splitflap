@@ -2288,8 +2288,9 @@ function switchTab(tab) {
   document.querySelector('.board-area').classList.toggle('send-mode', tab === 'send');
 
   if (tab === 'send') {
-    // Render so the board reflects the typing buffer (matches Live/Loop pattern).
-    // Don't auto-focus the input — keyboard pops up only when the user taps the typing area.
+    // Re-render the typing area so the cursor / tokens reflect current state.
+    // No board updates — Quick Send doesn't touch the splitflap board until SEND.
+    // No auto-focus — keyboard pops up only when the user taps the typing area.
     renderVisualInput('send');
   }
   updateBoardHint();
@@ -2483,13 +2484,9 @@ function renderVisualInput(which) {
     const hasContent = buf.length > 0 && buf.some(c => c !== ' ');
     document.getElementById('sendBtn').disabled = !hasContent;
 
-    // ─── Live preview: board reflects the typing buffer in real time ───
-    // Same pattern as Live (board shows current slide) and Loop (board shows current loop item).
-    // updateBoard is local-only — no fetch to ESP32 until SEND is pressed.
-    // Quick Send takes priority — pause Live/Loop while previewing on the board.
-    if (liveRunning) stopLiveMode();
-    if (loopRunning) stopLoop();
-    updateBoard(buf.join(''));
+    // Typing in Quick Send does NOT touch the splitflap board. Live and Loop
+    // keep running, the last sent message keeps showing — only SEND commits
+    // the typed buffer and overrides what's on the board.
   } else {
     document.getElementById('loopCharCount').textContent = buf.length;
     const hasContent = buf.length > 0 && buf.some(c => c !== ' ');
