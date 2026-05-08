@@ -23,10 +23,14 @@
 
 #include "display_layouts.h"
 
-// ReedBoard mod: shop hours (must match SHOP_HOURS in reedboard-app.html).
-// Mon–Fri 9–18, Sat 9–16, Sun closed.
-static const int8_t SHOP_OPEN[7]  = { -1,  9,  9,  9,  9,  9,  9 }; // -1 = closed all day
-static const int8_t SHOP_CLOSE[7] = { -1, 18, 18, 18, 18, 18, 16 }; // [0]=Sun, [6]=Sat per tm_wday
+// ReedBoard mod: convert WiFi RSSI (dBm) to a 0–100% strength reading.
+// -50 dBm or stronger → 100%; -100 dBm or weaker → 0%; linear in between.
+static inline int rssiToPercent(int rssi) {
+    int p = 2 * (rssi + 100);
+    if (p < 0) return 0;
+    if (p > 100) return 100;
+    return p;
+}
 
 DisplayTask::DisplayTask(SplitflapTask& splitflap_task, const uint8_t task_core) : Task("Display", 6000, 1, task_core), splitflap_task_(splitflap_task), semaphore_(xSemaphoreCreateMutex()) {
     assert(semaphore_ != NULL);
@@ -163,29 +167,20 @@ void DisplayTask::run() {
 
             // What changed this tick?
             int minute_now = have_time ? (timeinfo.tm_hour * 60 + timeinfo.tm_min) : -1;
-            int rssi = WiFi.RSSI();
+            bool wifi_connected = (WiFi.status() == WL_CONNECTED);
+            int rssi = wifi_connected ? WiFi.RSSI() : -127;
+            int wifi_pct = wifi_connected ? rssiToPercent(rssi) : -1;
             int rssi_bracket;
-            if      (rssi >= -55) rssi_bracket = 3; // strong  → green
-            else if (rssi >= -70) rssi_bracket = 2; // medium  → yellow
-            else if (rssi >= -90) rssi_bracket = 1; // weak    → red
-            else                  rssi_bracket = 0; // none    → grey
-            int open_now = -1;
-            if (have_time) {
-                int wday = timeinfo.tm_wday; // 0=Sun..6=Sat
-                int8_t oh = SHOP_OPEN[wday], ch = SHOP_CLOSE[wday];
-                if (oh < 0) {
-                    open_now = 0;
-                } else {
-                    int curMin = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-                    open_now = (curMin >= oh * 60 && curMin < ch * 60) ? 1 : 0;
-                }
-            }
+            if      (!wifi_connected) rssi_bracket = 0; // not connected → grey
+            else if (rssi >= -55)     rssi_bracket = 3; // strong         → green
+            else if (rssi >= -70)     rssi_bracket = 2; // medium         → yellow
+            else                      rssi_bracket = 1; // weak           → red
 
             bool minute_changed = (minute_now != last_drawn_minute_);
             bool rssi_changed   = (rssi_bracket != last_drawn_rssi_bracket_);
-            bool open_changed   = (open_now != last_drawn_open_status_);
+            bool pct_changed    = (wifi_pct != last_drawn_wifi_pct_);
 
-            if (minute_changed || rssi_changed || open_changed) {
+            if (minute_changed || rssi_changed || pct_changed) {
                 // Repaint the whole status bar to keep alignment simple.
                 tft_.fillRect(0, 0, tft_.width(), 24, TFT_BLACK);
                 tft_.setTextSize(2);
@@ -202,29 +197,30 @@ void DisplayTask::run() {
                     tft_.drawString("--:-- --", 2, 4);
                 }
 
-                // WiFi RSSI dot in center (color-coded)
-                uint16_t dot_color;
+                // WiFi strength % on right, color-coded by RSSI bracket
+                uint16_t wifi_color;
                 switch (rssi_bracket) {
-                    case 3: dot_color = TFT_GREEN;  break;
-                    case 2: dot_color = TFT_YELLOW; break;
-                    case 1: dot_color = TFT_RED;    break;
-                    default: dot_color = 0x4208;    break; // dim grey when no signal
+                    case 3: wifi_color = TFT_GREEN;  break;
+                    case 2: wifi_color = TFT_YELLOW; break;
+                    case 1: wifi_color = TFT_RED;    break;
+                    default: wifi_color = 0x8410;    break; // dim grey when not connected
                 }
-                tft_.fillCircle(tft_.width() / 2, 12, 5, dot_color);
-
-                // OPEN / CLSD on right
-                const char* status_str = (open_now == 1) ? "OPEN" : (open_now == 0) ? "CLSD" : "----";
-                uint16_t status_color = (open_now == 1) ? TFT_GREEN : (open_now == 0) ? TFT_RED : TFT_WHITE;
-                tft_.setTextColor(status_color, TFT_BLACK);
-                int sw = strlen(status_str) * 12;
-                tft_.drawString(status_str, tft_.width() - sw - 2, 4);
+                tft_.setTextColor(wifi_color, TFT_BLACK);
+                char wbuf[16];
+                if (wifi_pct < 0) {
+                    snprintf(wbuf, sizeof(wbuf), "WIFI --");
+                } else {
+                    snprintf(wbuf, sizeof(wbuf), "WIFI %d%%", wifi_pct);
+                }
+                int ww = strlen(wbuf) * 12;
+                tft_.drawString(wbuf, tft_.width() - ww - 2, 4);
 
                 // Thin divider under the status bar
                 tft_.drawFastHLine(0, 25, tft_.width(), 0x2104);
 
                 last_drawn_minute_       = minute_now;
                 last_drawn_rssi_bracket_ = rssi_bracket;
-                last_drawn_open_status_  = open_now;
+                last_drawn_wifi_pct_     = wifi_pct;
             }
         }
 
