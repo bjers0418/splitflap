@@ -2287,7 +2287,13 @@ function switchTab(tab) {
   document.getElementById('panelLoop').classList.toggle('active', tab === 'loop');
   document.querySelector('.board-area').classList.toggle('send-mode', tab === 'send');
 
-  if (tab === 'send') document.getElementById('hiddenInput').focus();
+  if (tab === 'send') {
+    // Focus the input so the keyboard appears + cursor is ready,
+    // and explicitly render so the board reflects the typing buffer
+    // (focus event alone isn't reliable when input was already focused).
+    document.getElementById('hiddenInput').focus();
+    renderVisualInput('send');
+  }
   updateBoardHint();
   updatePlayPauseIcon();
   updateTimerVisibility();
